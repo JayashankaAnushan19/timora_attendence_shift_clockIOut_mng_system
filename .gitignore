@@ -1,0 +1,42 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Live data: employee and attendance records must never be committed
+database/*
+!database/.gitkeep
+backups/*
+!backups/.gitkeep
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+
+# Secrets
+secret.key
+*.key
+.env
+.env.*
+
+# Local-only network/port overrides
+config/settings.local.json
+
+# Logs
+logs/
+*.log
+
+# Editors and operating systems
+.vscode/
+.idea/
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Empty placeholder that came with the project folder
+New Text Document.txt

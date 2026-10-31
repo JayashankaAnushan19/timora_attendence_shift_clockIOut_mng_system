@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Timora</title>
+  <link rel="icon" href="/assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/css/style.css">
+</head>
+<body>
+  <div class="terminal">
+    <header class="t-top">
+      <div class="t-brand">
+        <img id="brandLogo" src="/assets/img/logo.svg" alt="">
+        <div><strong id="brandName">TIMORA</strong><small>Smart Employee Time Tracking</small></div>
+      </div>
+      <div class="t-now"><b id="topTime">--:--:--</b><span id="topDate"></span></div>
+    </header>
+
+    <div class="t-offline" id="offline" role="alert" hidden>
+      Connection to the server lost. Clock in and clock out are unavailable until it returns.
+    </div>
+
+    <main class="t-main">
+      <div class="t-clockwrap" id="clockWrap">
+        <div class="t-clock" id="clock" aria-live="off">--:--:--</div>
+        <div class="t-date" id="date"></div>
+        <div class="t-tz" id="tz"></div>
+      </div>
+
+      <div class="t-select" id="picker">
+        <button class="t-select-btn is-empty" id="pickerBtn" type="button" autofocus
+                aria-haspopup="listbox" aria-expanded="false" aria-controls="pickerPanel">
+          <span class="t-select-label" id="pickerLabel">Select employee</span>
+          <span class="t-caret" aria-hidden="true">&#9662;</span>
+        </button>
+        <button class="t-clear" id="clear" type="button" aria-label="Clear selection" hidden>&times;</button>
+        <div class="t-panel" id="pickerPanel" hidden>
+          <input id="search" type="search" autocomplete="off" spellcheck="false"
+                 placeholder="Search by name or employee ID" aria-label="Search by name or employee ID"
+                 aria-controls="results">
+          <ul class="t-results" id="results" role="listbox" aria-label="Employees"></ul>
+        </div>
+      </div>
+
+      <section class="t-card placeholder" id="card" aria-live="polite">
+        Select your name to begin.
+      </section>
+
+      <div class="t-error" id="error" role="alert" hidden></div>
+
+      <div class="t-actions">
+        <button class="t-btn" id="btnIn" type="button" disabled>CLOCK IN</button>
+        <button class="t-btn" id="btnOut" type="button" disabled>CLOCK OUT</button>
+      </div>
+    </main>
+
+    <footer class="t-foot">
+      <span id="company"></span>
+      <a href="/admin">Admin login</a>
+    </footer>
+  </div>
+
+  <div class="t-overlay" id="overlay" role="status" aria-live="assertive" hidden>
+    <div class="t-success" id="successBox">
+      <h2>SUCCESS!</h2>
+      <div class="who" id="sName"></div>
+      <div class="id" id="sId"></div>
+      <div class="what" id="sAction"></div>
+      <div class="when" id="sTime"></div>
+      <div class="note" id="sNote"></div>
+    </div>
+  </div>
+
+  <script src="/assets/js/main.js"></script>
+  <script src="/assets/js/attendance.js"></script>
+</body>
+</html>

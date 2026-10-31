@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin Login · Timora</title>
+  <link rel="icon" href="/assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/css/style.css">
+</head>
+<body>
+  <div class="login-page">
+    <div class="login-box">
+      <div class="login-brand">
+        <img src="/assets/img/logo.svg" alt="">
+        <div><strong>Timora</strong><small>Smart Employee Time Tracking</small></div>
+      </div>
+      <div class="form-error" id="error" role="alert" hidden></div>
+
+      <form id="loginForm" class="form-grid" style="grid-template-columns:1fr">
+        <h1>Administrator login</h1>
+        <div class="field"><label for="username">Username</label>
+          <input id="username" autocomplete="username" required autofocus></div>
+        <div class="field"><label for="password">Password</label>
+          <input id="password" type="password" autocomplete="current-password" required></div>
+        <button class="btn btn-primary" type="submit">Login</button>
+      </form>
+
+      <form id="changeForm" class="form-grid" style="grid-template-columns:1fr" hidden>
+        <h1>Choose a new password</h1>
+        <p class="hint" style="margin:0">You must set your own password before continuing.</p>
+        <div class="field"><label for="currentPassword">Current password</label>
+          <input id="currentPassword" type="password" autocomplete="current-password" required></div>
+        <div class="field"><label for="newPassword">New password (at least 8 characters)</label>
+          <input id="newPassword" type="password" autocomplete="new-password" minlength="8" required></div>
+        <div class="field"><label for="repeatPassword">Repeat new password</label>
+          <input id="repeatPassword" type="password" autocomplete="new-password" minlength="8" required></div>
+        <button class="btn btn-primary" type="submit">Save password</button>
+      </form>
+
+      <a class="login-back" href="/">Back to attendance screen</a>
+    </div>
+  </div>
+  <script src="/assets/js/main.js"></script>
+  <script src="/assets/js/login.js"></script>
+</body>
+</html>

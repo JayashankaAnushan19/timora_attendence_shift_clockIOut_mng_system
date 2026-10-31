@@ -1,0 +1,7 @@
+{
+  "host": "127.0.0.1",
+  "port": 5000,
+  "database": "database/timora.db",
+  "backup_dir": "backups",
+  "max_upload_mb": 200
+}
