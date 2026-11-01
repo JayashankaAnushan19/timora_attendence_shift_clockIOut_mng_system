@@ -1,4 +1,4 @@
-# Timora
+# Timora v1.0
 
 **Smart Employee Time Tracking**
 
@@ -12,6 +12,7 @@ It runs on your own computer or local network. It needs no cloud service, and al
 - [Quick start on Windows](#quick-start-on-windows)
 - [Default login](#default-login)
 - [First-time setup](#first-time-setup)
+- [Admin menu](#admin-menu)
 - [Daily use](#daily-use)
 - [Manual install (Windows, macOS, Linux)](#manual-install-windows-macos-linux)
 - [Use from other computers on the network](#use-from-other-computers-on-the-network)
@@ -23,6 +24,7 @@ It runs on your own computer or local network. It needs no cloud service, and al
 - [Roles and permissions](#roles-and-permissions)
 - [Reports and Excel export](#reports-and-excel-export)
 - [Backup and restore](#backup-and-restore)
+- [Critical Operations](#critical-operations)
 - [Troubleshooting](#troubleshooting)
 - [Project structure](#project-structure)
 - [For developers](#for-developers)
@@ -121,6 +123,17 @@ Log in to the admin panel, then:
 4. **Add holidays.** On the **Shifts** page, open the **Holidays & Non-Working Days** tab.
 5. **Add employees.** Under **Employees**, add each person with their type, shift, basic salary and OT pay rate per hour. IDs are generated automatically. To change the types or show a currency, use **Employee Settings** in **System Settings**.
 6. **Add other administrators, if needed.** Use **User Access Management**. Anyone who adds overtime needs their own login with the **Manager** role or higher.
+
+## Admin menu
+
+The sidebar is grouped, and each group opens and closes with a click. The group holding the current page always opens. You only see the pages your role allows.
+
+| Group | Pages |
+|---|---|
+| Workforce | Employees, Shifts, Shift Assignments |
+| Time & Attendance | Attendance Records, Overtime |
+| Payroll & Reports | Salary, Attendance Reports |
+| Administration | User Access Management, System Settings, Backup & Restore, Critical Operations |
 
 ## Daily use
 
@@ -282,6 +295,7 @@ Basic salary is not reduced automatically for absence or for joining mid-month. 
 | System settings | Yes | No | No | No | No |
 | Backup and restore | Yes | No | No | No | No |
 | Audit log | Yes | No | No | No | No |
+| Critical Operations (purge and reset) | Yes | No | No | No | No |
 
 Super Admins can change what each other role can do under **User Access Management > Roles & Permissions**. Super Admin itself always has full access, and at least one active Super Admin must remain.
 
@@ -307,6 +321,23 @@ Go to **Backup & Restore** in the admin panel, available to Super Admins.
 - **Restore** replaces all current data from an uploaded or saved backup. The file is checked first, and a safety copy of the current data is saved beforehand as `timora-pre-restore-*.db`.
 
 Your data is in `database/timora.db`. Git ignores this file and the `backups` folder, so **pushing to GitHub does not back up your data**. Keep copies of your backups on another drive.
+
+## Critical Operations
+
+This page is only available to Super Admins, and the permission cannot be given to any other role.
+
+| Option | What it does |
+|---|---|
+| **Purge Selected** | Deletes the rows you tick in the chosen table |
+| **Purge All Shown** | Deletes every row in the chosen table that matches the date and employee filters. With no filters, this is the whole table |
+| **Clean Up All Data** | Deletes all employees, attendance, overtime, salary data, leave, holidays and the audit log. Keeps shifts, settings and administrators |
+| **Reset Everything** | Returns Timora to a new installation: default shifts and settings, the starter employee, and the login `admin` / `admin@123` |
+
+**Safeguards:** each operation shows what will be removed, requires your password and a typed confirmation word, and saves a backup first as `timora-pre-purge-*.db` or `timora-pre-reset-*.db`. Backup files are never deleted. To undo an operation, restore that file under **Backup & Restore**.
+
+**What else is removed:** purging an employee also deletes all of their records. Purging a shift also deletes its assignments, and attendance records lose their link to that shift. If no shift remains, the starter shifts are added again.
+
+**Employee IDs:** purges and cleanups do not reuse IDs, so numbering continues. Only **Reset Everything** restarts from `EM001`, with Heyshan Senaviratne.
 
 ## Troubleshooting
 
@@ -349,7 +380,8 @@ If startup still fails, the details may be in `logs/timora-error.log`.
 │   ├── dashboard.py      Dashboard data
 │   ├── reports.py        Reports and exports
 │   ├── settings.py       System settings
-│   └── backup.py         Backup, restore, data exports
+│   ├── backup.py         Backup, restore, data exports
+│   └── critical.py       Purge, full cleanup and reset
 ├── frontend/             HTML, CSS and JavaScript, with no build step
 ├── config/
 │   ├── settings.json     Server address, port and file locations

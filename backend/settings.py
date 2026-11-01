@@ -13,6 +13,7 @@ from .database import audit, get_db, transaction
 
 bp = Blueprint("settings", __name__)
 
+APP_NAME = "Timora v1.0"
 DATE_FORMATS = ["long", "DD/MM/YYYY", "MM/DD/YYYY", "YYYY-MM-DD"]
 MAX_EMPLOYEES = 999
 LOGO_TYPES = {
@@ -119,7 +120,6 @@ def _prefix(value):
 SCHEMA = {
     # General
     "company_name": ("My Company", _text(100), "Company name"),
-    "app_name": ("Timora", _text(40), "Application name"),
     "company_tagline": ("", _optional_text(120), "Company tagline"),
     "company_about": ("", _optional_text(400), "About the company"),
     "company_address": ("", _optional_text(200), "Company address"),
@@ -198,7 +198,7 @@ def editable_settings(settings):
 def public_config(settings):
     """Only what the attendance terminal needs. Safe for unauthenticated use."""
     return {
-        "app_name": settings["app_name"],
+        "app_name": APP_NAME,
         "company_name": settings["company_name"],
         "company_profile": {key: settings[f"company_{key}"] for key in (
             "tagline", "about", "address", "phone", "email", "website", "registration")},

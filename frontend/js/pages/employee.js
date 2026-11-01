@@ -20,7 +20,7 @@ Admin.start("employee", "Employee Details", async (root) => {
       <div class="stat"><div class="label">Overtime Days</div><div class="value">${esc(s.overtime_count)}</div></div>
       <div class="stat"><div class="label">Overtime Total</div><div class="value">${esc(T.fmtDuration(s.overtime_seconds))}</div></div>
     </div>
-    <div class="two-col" style="grid-template-columns:1fr 1fr">
+    <div class="two-col even">
       <section class="panel"><div class="panel-head"><h2>${esc(e.name)}</h2>${Admin.statusPill(e.status)}</div>
         <div class="panel-body"><dl class="dl">
           ${row("Employee ID", e.employee_id)}

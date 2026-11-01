@@ -4,8 +4,8 @@ import sqlite3
 from flask import Flask, abort, jsonify, redirect, request, send_from_directory
 from werkzeug.exceptions import HTTPException
 
-from . import (attendance, auth, backup, dashboard, employees, overtime, payroll, reports, settings, shifts,
-               timeutil)
+from . import (attendance, auth, backup, critical, dashboard, employees, overtime, payroll, reports, settings,
+               shifts, timeutil)
 from .api import ApiError, ok
 from .config import FRONTEND_DIR, load_config, load_secret_key
 from .database import close_db, get_db, init_db
@@ -24,6 +24,7 @@ ADMIN_PAGES = {
     "users": "users.manage",
     "settings": "settings.manage",
     "backup": "backup.manage",
+    "critical": "system.critical",
 }
 ASSET_DIRS = {"css", "js", "img"}
 SECURITY_HEADERS = {
@@ -51,7 +52,8 @@ def create_app(overrides=None):
     init_db(cfg["database"])
     app.teardown_appcontext(close_db)
 
-    for module in (auth, settings, attendance, employees, shifts, overtime, payroll, dashboard, reports, backup):
+    for module in (auth, settings, attendance, employees, shifts, overtime, payroll, dashboard, reports, backup,
+                   critical):
         app.register_blueprint(module.bp)
 
     _register_guards(app)

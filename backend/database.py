@@ -34,7 +34,11 @@ ALL_PERMISSIONS = [
     "audit.view",
     "overtime.manage",
     "payroll.manage",
+    "system.critical",
 ]
+
+# Only ever held by Super Admin, and cannot be given to another role.
+SUPER_ADMIN_ONLY_PERMISSIONS = {"system.critical"}
 
 SUPER_ADMIN = "Super Admin"
 
@@ -383,6 +387,11 @@ def _grant_admin_permissions(conn, *added):
         permissions = set(json.loads(row["permissions"])) | set(added)
         conn.execute("UPDATE roles SET permissions = ? WHERE name = 'Admin'",
                      (json.dumps(sorted(permissions)),))
+
+
+def seed_defaults(conn):
+    """Adds whatever is missing: roles, a first administrator, and starter shifts."""
+    _seed(conn)
 
 
 def _seed(conn):

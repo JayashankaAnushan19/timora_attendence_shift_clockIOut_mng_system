@@ -8,7 +8,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from . import timeutil
 from .api import ApiError, get_int, get_str, json_body, ok, page_args
-from .database import ALL_PERMISSIONS, SUPER_ADMIN, audit, get_db, transaction
+from .database import ALL_PERMISSIONS, SUPER_ADMIN, SUPER_ADMIN_ONLY_PERMISSIONS, audit, get_db, transaction
 
 bp = Blueprint("auth", __name__)
 
@@ -189,12 +189,12 @@ def change_password():
 @bp.get("/api/admin/me")
 @require(allow_password_change_pending=True)
 def me():
-    from .settings import get_settings
+    from .settings import APP_NAME, get_settings
     settings = get_settings(get_db())
     return ok(
         admin=admin_public(g.admin),
         display={
-            "app_name": settings["app_name"],
+            "app_name": APP_NAME,
             "company_name": settings["company_name"],
             "timezone": settings["timezone"],
             "date_format": settings["date_format"],
@@ -363,7 +363,7 @@ def reset_user_password(user_id):
 def list_roles():
     rows = get_db().execute("SELECT * FROM roles ORDER BY id").fetchall()
     return ok(
-        all_permissions=ALL_PERMISSIONS,
+        all_permissions=[p for p in ALL_PERMISSIONS if p not in SUPER_ADMIN_ONLY_PERMISSIONS],
         items=[{
             "id": r["id"],
             "name": r["name"],
@@ -378,7 +378,8 @@ def list_roles():
 @require("users.manage")
 def update_role(role_id):
     permissions = json_body().get("permissions")
-    if not isinstance(permissions, list) or not all(p in ALL_PERMISSIONS for p in permissions):
+    if (not isinstance(permissions, list)
+            or not all(p in ALL_PERMISSIONS and p not in SUPER_ADMIN_ONLY_PERMISSIONS for p in permissions)):
         raise ApiError("Permissions must come from the known list.", code="VALIDATION_ERROR")
     conn = get_db()
     with transaction(conn):

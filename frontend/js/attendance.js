@@ -80,7 +80,7 @@
     T.setDisplay({ timezone: next.timezone, time_format: next.time_format, date_format: next.date_format });
     document.documentElement.dataset.theme = next.theme;
     document.title = next.app_name;
-    $("brandName").textContent = next.app_name.toUpperCase();
+    $("brandName").textContent = next.app_name;
     $("company").textContent = next.company_name;
     $("tz").textContent = `Time zone: ${next.timezone}`;
     $("clockWrap").hidden = !next.clock_enabled;

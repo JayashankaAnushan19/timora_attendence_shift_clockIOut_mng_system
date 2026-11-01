@@ -9,7 +9,6 @@ Admin.start("settings", "System Settings", async (root) => {
   const SECTIONS = [
     ["General Settings", [
       ["company_name", "Company Name", "text"],
-      ["app_name", "Application Name", "text"],
       ["timezone", "Business Timezone", "timezone"],
       ["date_format", "Date Format", "select", [["long", "Saturday, 31 October 2026"], ["DD/MM/YYYY", "DD/MM/YYYY"], ["MM/DD/YYYY", "MM/DD/YYYY"], ["YYYY-MM-DD", "YYYY-MM-DD"]]],
       ["time_format", "Time Format", "select", [["12", "12-hour"], ["24", "24-hour"]]],

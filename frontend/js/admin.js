@@ -13,22 +13,33 @@ const Admin = (() => {
     users: "M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.500-7-10V6z",
     settings: "M4 7h10M18 7h2M4 17h2M10 17h10M16 9.500a2.500 2.500 0 1 0 0-5 2.500 2.500 0 0 0 0 5zM8 19.500a2.500 2.500 0 1 0 0-5 2.500 2.500 0 0 0 0 5z",
     backup: "M12 3v12M7 10l5 5 5-5M4 20h16",
+    critical: "M12 4l9 16H3zM12 10v4M12 17h.01",
     logout: "M15 17l5-5-5-5M20 12H9M11 21H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h6",
     home: "M3 11l9-8 9 8M5 9.500V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.500",
   };
-  const NAV = [
-    ["dashboard", "Dashboard", "dashboard.view"],
-    ["employees", "Employees", "employees.view"],
-    ["shifts", "Shifts", "shifts.view"],
-    ["assignments", "Shift Assignments", "shifts.view"],
-    ["attendance", "Attendance Records", "attendance.view"],
-    ["overtime", "Overtime", "overtime.manage"],
-    ["salary", "Salary", "payroll.manage"],
-    ["reports", "Attendance Reports", "reports.view"],
-    ["users", "User Access Management", "users.manage"],
-    ["settings", "System Settings", "settings.manage"],
-    ["backup", "Backup & Restore", "backup.manage"],
+  const DASHBOARD = ["dashboard", "Dashboard", "dashboard.view"];
+  const NAV_GROUPS = [
+    ["workforce", "Workforce", [
+      ["employees", "Employees", "employees.view"],
+      ["shifts", "Shifts", "shifts.view"],
+      ["assignments", "Shift Assignments", "shifts.view"],
+    ]],
+    ["time", "Time & Attendance", [
+      ["attendance", "Attendance Records", "attendance.view"],
+      ["overtime", "Overtime", "overtime.manage"],
+    ]],
+    ["pay", "Payroll & Reports", [
+      ["salary", "Salary", "payroll.manage"],
+      ["reports", "Attendance Reports", "reports.view"],
+    ]],
+    ["admin", "Administration", [
+      ["users", "User Access Management", "users.manage"],
+      ["settings", "System Settings", "settings.manage"],
+      ["backup", "Backup & Restore", "backup.manage"],
+      ["critical", "Critical Operations", "system.critical"],
+    ]],
   ];
+  const NAV_STORAGE_KEY = "timora.navOpen";
   const icon = (name) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${ICONS[name]}"/></svg>`;
 
   const state = { admin: null, display: null };
@@ -65,10 +76,40 @@ const Admin = (() => {
     setTimeout(() => el.remove(), kind === "error" ? 7000 : 3500);
   }
 
+  /* Which sidebar groups stay open is only a convenience, so storage failures are ignored. */
+  function readOpenGroups() {
+    try {
+      const value = JSON.parse(localStorage.getItem(NAV_STORAGE_KEY));
+      return Array.isArray(value) ? value : [];
+    } catch (err) {
+      return [];
+    }
+  }
+
+  function saveOpenGroups(app) {
+    const open = [...app.querySelectorAll('.nav-group-btn[aria-expanded="true"]')].map((b) => b.dataset.group);
+    try {
+      localStorage.setItem(NAV_STORAGE_KEY, JSON.stringify(open));
+    } catch (err) {
+      // Private windows can block storage; the sidebar still works.
+    }
+  }
+
   function renderShell(page, title) {
-    const nav = NAV.filter(([, , perm]) => can(perm)).map(([key, label]) => {
-      const active = key === page || (page === "employee" && key === "employees");
-      return `<a href="/admin/${key}" class="${active ? "active" : ""}">${icon(key)}<span>${esc(label)}</span></a>`;
+    const activeKey = page === "employee" ? "employees" : page;
+    const link = ([key, label]) => `<a href="/admin/${key}" class="${key === activeKey ? "active" : ""}"${key === activeKey ? ' aria-current="page"' : ""}>${icon(key)}<span>${esc(label)}</span></a>`;
+    const remembered = readOpenGroups();
+    const nav = (can(DASHBOARD[2]) ? link(DASHBOARD) : "") + NAV_GROUPS.map(([id, title, items]) => {
+      const allowed = items.filter(([, , perm]) => can(perm));
+      if (!allowed.length) return "";
+      const hasActive = allowed.some(([key]) => key === activeKey);
+      const open = hasActive || remembered.includes(id);
+      return `<div class="nav-group">
+        <button class="nav-group-btn" type="button" data-group="${id}" aria-expanded="${open}" aria-controls="nav-${id}">
+          <span>${esc(title)}</span><span class="nav-chevron" aria-hidden="true">&#9662;</span>
+        </button>
+        <div class="nav-group-items" id="nav-${id}"${open ? "" : " hidden"}>${allowed.map(link).join("")}</div>
+      </div>`;
     }).join("");
     const app = document.getElementById("app");
     app.innerHTML = `
@@ -92,6 +133,12 @@ const Admin = (() => {
           <main class="content" id="content"></main>
         </div>
       </div>`;
+    app.querySelectorAll(".nav-group-btn").forEach((button) => button.addEventListener("click", () => {
+      const open = button.getAttribute("aria-expanded") !== "true";
+      button.setAttribute("aria-expanded", String(open));
+      document.getElementById(`nav-${button.dataset.group}`).hidden = !open;
+      saveOpenGroups(app);
+    }));
     document.getElementById("logout").addEventListener("click", async () => {
       try { await T.api("POST", "/api/auth/logout", {}); } finally { location.href = "/admin/login"; }
     });
@@ -193,7 +240,7 @@ const Admin = (() => {
         const arrow = st.sort === c.key ? `<span class="arrow">${st.dir === "asc" ? "▲" : "▼"}</span>` : "";
         return `<th class="${c.sortable ? "sortable" : ""} ${c.num ? "num" : ""}" data-key="${esc(c.key)}">${esc(c.label)}${arrow}</th>`;
       }).join("");
-      thead.innerHTML = `<tr>${cells}${actions ? "<th></th>" : ""}</tr>`;
+      thead.innerHTML = `<tr>${cells}${actions ? '<th class="actions"></th>' : ""}</tr>`;
       thead.querySelectorAll("th.sortable").forEach((th) => th.addEventListener("click", () => {
         const key = th.dataset.key;
         if (st.sort === key) st.dir = st.dir === "asc" ? "desc" : "asc";
