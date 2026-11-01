@@ -23,8 +23,6 @@ def _shift_fields(data, settings):
                        code="VALIDATION_ERROR", field="code")
     start = get_time(data, "start_time", "Start time")
     end = get_time(data, "end_time", "End time")
-    if start == end:
-        raise ApiError("Start and end time must be different.", code="VALIDATION_ERROR", field="end_time")
     days = data.get("working_days", settings["default_working_days"])
     if (not isinstance(days, list) or not days
             or not all(isinstance(d, int) and not isinstance(d, bool) and 0 <= d <= 6 for d in days)):
@@ -50,7 +48,8 @@ def _shift_out(row, assigned=None):
     shift = dict(row)
     shift["working_days"] = json.loads(shift["working_days"])
     shift["is_flexible"] = bool(shift["is_flexible"])
-    shift["is_overnight"] = shift["end_time"] <= shift["start_time"]
+    shift["is_overnight"] = shift["end_time"] < shift["start_time"]
+    shift["is_24h"] = shift["end_time"] == shift["start_time"]
     if assigned is not None:
         shift["assigned_count"] = assigned
     return shift

@@ -12,6 +12,7 @@ const Admin = (() => {
     settings: "M4 7h10M18 7h2M4 17h2M10 17h10M16 9.500a2.500 2.500 0 1 0 0-5 2.500 2.500 0 0 0 0 5zM8 19.500a2.500 2.500 0 1 0 0-5 2.500 2.500 0 0 0 0 5z",
     backup: "M12 3v12M7 10l5 5 5-5M4 20h16",
     logout: "M15 17l5-5-5-5M20 12H9M11 21H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h6",
+    home: "M3 11l9-8 9 8M5 9.500V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.500",
   };
   const NAV = [
     ["dashboard", "Dashboard", "dashboard.view"],
@@ -69,9 +70,10 @@ const Admin = (() => {
     app.innerHTML = `
       <div class="shell">
         <aside class="sidebar no-print">
-          <div class="side-brand"><img src="/assets/img/logo.svg" alt=""><strong>${esc(state.display.app_name)}</strong></div>
+          <a class="side-brand" href="/" title="Go to home page"><img src="/assets/img/logo.svg" alt=""><strong>${esc(state.display.app_name)}</strong></a>
           <nav class="side-nav">${nav}</nav>
-          <div class="side-nav side-foot"><button id="logout" type="button">${icon("logout")}<span>Logout</span></button></div>
+          <div class="side-nav side-foot"><a href="/">${icon("home")}<span>Home</span></a>
+            <button id="logout" type="button">${icon("logout")}<span>Logout</span></button></div>
         </aside>
         <div class="main">
           <header class="topbar">
@@ -319,7 +321,8 @@ const Admin = (() => {
         return wrap(`<label>${esc(f.label)}</label><div class="weekdays" data-weekdays="${esc(f.name)}">${boxes}</div>`);
       }
       case "checklist": {
-        const boxes = f.options.map(([v, l]) => `<label data-text="${esc(String(l).toLowerCase())}"><input type="checkbox" value="${esc(v)}">${esc(l)}</label>`).join("");
+        const chosen = value || [];
+        const boxes = f.options.map(([v, l]) => `<label data-text="${esc(String(l).toLowerCase())}"><input type="checkbox" value="${esc(v)}" ${chosen.includes(v) ? "checked" : ""}>${esc(l)}</label>`).join("");
         return wrap(`<label>${esc(f.label)}${f.required ? " *" : ""}</label>
           <input type="search" placeholder="Filter by name or ID" data-checkfilter="${esc(f.name)}">
           <div class="checklist" data-checklist="${esc(f.name)}">${boxes}</div>`);
@@ -438,10 +441,33 @@ const Admin = (() => {
     a.remove();
   }
 
+  /* Download through fetch, so a failure shows its message instead of saving an error as a file. */
+  async function fetchDownload(url) {
+    let response;
+    try {
+      response = await fetch(url, { credentials: "same-origin" });
+    } catch (err) {
+      throw new Error("Could not reach the server. Please check the connection and try again.");
+    }
+    if (!response.ok) {
+      if (response.status === 401) { location.href = "/admin/login"; return new Promise(() => {}); }
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.message || "The export could not be created.");
+    }
+    const match = /filename="([^"]+)"/.exec(response.headers.get("Content-Disposition") || "");
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(await response.blob());
+    link.download = match ? match[1] : "timora-export";
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(link.href), 60000);
+  }
+
   function debounce(fn, ms = 250) {
     let timer;
     return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), ms); };
   }
 
-  return { start, call, can, toast, table, localLoad, queryString, modal, confirm, formModal, tabs, statusPill, download, debounce, state, WEEKDAYS };
+  return { start, call, can, toast, table, localLoad, queryString, modal, confirm, formModal, tabs, statusPill, download, fetchDownload, debounce, state, WEEKDAYS };
 })();

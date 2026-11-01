@@ -45,12 +45,7 @@ DEFAULT_ROLES = [
     ("Viewer", "Read-only dashboard and reports.", ["dashboard.view", "reports.view"]),
 ]
 
-DEFAULT_SHIFTS = [
-    ("Morning Shift", "MORNING", "09:00", "18:00", 0),
-    ("Evening Shift", "EVENING", "14:00", "23:00", 0),
-    ("Night Shift", "NIGHT", "22:00", "07:00", 0),
-    ("Flexible Shift", "FLEX", "08:00", "20:00", 1),
-]
+DEFAULT_SHIFT_CODE = "DEFAULT"
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS roles (
@@ -326,12 +321,13 @@ def _seed(conn):
             )
 
         if conn.execute("SELECT COUNT(*) FROM shifts").fetchone()[0] == 0:
-            for name, code, start, end, flexible in DEFAULT_SHIFTS:
-                conn.execute(
-                    "INSERT INTO shifts(name, code, start_time, end_time, is_flexible, "
-                    "created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                    (name, code, start, end, flexible, now, now),
-                )
+            # A 24-hour window: clock in any time, every day; each day starts at 7 AM.
+            conn.execute(
+                "INSERT INTO shifts(name, code, start_time, end_time, working_days, break_minutes, "
+                "early_clock_in_minutes, is_flexible, created_at, updated_at) "
+                "VALUES ('Default Shift', ?, '07:00', '07:00', '[0,1,2,3,4,5,6]', 0, 0, 1, ?, ?)",
+                (DEFAULT_SHIFT_CODE, now, now),
+            )
 
 
 def audit(conn, action, entity_type="", entity_id="", details=None, actor=None):

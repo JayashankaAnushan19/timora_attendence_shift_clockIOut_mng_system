@@ -14,6 +14,7 @@
   let busy = false;
   let pickerOpen = false;
   let results = [];
+  let shownQuery = null;
   let activeIndex = -1;
   let searchSeq = 0;
   let searchTimer = null;
@@ -151,6 +152,7 @@
       const data = await T.api("GET", `/api/public/employees/search?q=${encodeURIComponent(query)}`, undefined, { timeout: REQUEST_TIMEOUT_MS });
       if (seq !== searchSeq) return;
       results = data.items;
+      shownQuery = query;
       // With a search typed, Enter picks the top match straight away.
       activeIndex = query && results.length ? 0 : -1;
       renderResults(query ? "No matching employee found." : "No employees have been added yet.");
@@ -168,6 +170,16 @@
     searchTimer = setTimeout(() => runSearch(query), 120);
   }
 
+  /* Fast typing can reach Enter before the search has run, so finish it first. */
+  async function pickFromSearch() {
+    const query = $("search").value.trim();
+    if (query !== shownQuery) {
+      clearTimeout(searchTimer);
+      await runSearch(query);
+    }
+    if (pickerOpen && results[activeIndex]) selectEmployee(results[activeIndex].employee_id);
+  }
+
   function onSearchKey(event) {
     touchIdle();
     if (event.key === "ArrowDown" && results.length) {
@@ -180,7 +192,7 @@
       event.preventDefault();
     } else if (event.key === "Enter") {
       event.preventDefault();
-      if (results[activeIndex]) selectEmployee(results[activeIndex].employee_id);
+      pickFromSearch();
     } else if (event.key === "Escape") {
       closePicker({ refocus: true });
     } else if (event.key === "Tab") {

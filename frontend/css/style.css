@@ -213,6 +213,11 @@ label { font-weight: 600; font-size: 13px; }
 .shell { display: grid; grid-template-columns: 232px 1fr; min-height: 100%; }
 .sidebar { background: var(--navy); color: #cbd5e1; display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
 .side-brand { display: flex; gap: 10px; align-items: center; padding: 16px 16px 14px; color: #fff; }
+.side-brand:hover { text-decoration: none; opacity: .85; }
+.t-brand { color: inherit; }
+.t-brand:hover { text-decoration: none; opacity: .9; }
+.login-brand { color: inherit; }
+.login-brand:hover { text-decoration: none; }
 .side-brand img { width: 34px; height: 34px; border-radius: 8px; background: #fff; object-fit: contain; }
 .side-brand strong { font-size: 17px; }
 .side-nav { flex: 1; padding: 4px 10px; display: flex; flex-direction: column; gap: 2px; }

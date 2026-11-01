@@ -2,13 +2,16 @@ Admin.start("reports", "Attendance Reports", async (root) => {
   const { esc } = T;
   const [lookups, list] = await Promise.all([Admin.call("GET", "/api/admin/lookups"), Admin.call("GET", "/api/admin/reports")]);
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: T.display.timezone }).format(new Date());
+  const PRESETS = [
+    ["today", "Today"], ["yesterday", "Yesterday"], ["this_week", "This Week"], ["last_week", "Last Week"],
+    ["this_month", "This Month"], ["last_month", "Last Month"], ["custom", "Custom Date Range"],
+  ];
 
   root.innerHTML = `<section class="panel">
     <div class="toolbar">
       <div><label for="report">Report</label><select id="report">${list.items.map((r) => `<option value="${esc(r.key)}">${esc(r.title)}</option>`).join("")}</select></div>
       <div><label for="preset">Date range</label><select id="preset">
-        <option value="today">Today</option><option value="yesterday">Yesterday</option><option value="this_week">This Week</option>
-        <option value="this_month">This Month</option><option value="custom">Custom Date Range</option></select></div>
+        ${PRESETS.map(([v, l]) => `<option value="${v}">${l}</option>`).join("")}</select></div>
       <div class="custom" hidden><label for="from">From</label><input id="from" type="date" value="${today}"></div>
       <div class="custom" hidden><label for="to">To</label><input id="to" type="date" value="${today}"></div>
       <div><label for="emp">Employee</label><select id="emp"><option value="">All</option>
@@ -16,6 +19,8 @@ Admin.start("reports", "Attendance Reports", async (root) => {
       <div><label for="dept">Department</label><select id="dept"><option value="">All</option>${lookups.departments.map((d) => `<option>${esc(d)}</option>`).join("")}</select></div>
       <div><label for="shift">Shift</label><select id="shift"><option value="">All</option>${lookups.shifts.map((s) => `<option value="${esc(s.id)}">${esc(s.name)}</option>`).join("")}</select></div>
       <div class="btn-group">
+        <button class="btn btn-primary" id="bulk" type="button">Export All Reports</button>
+        <button class="btn" id="xlsx" type="button">Excel</button>
         <button class="btn" id="csv" type="button">CSV</button>
         <button class="btn" id="json" type="button">JSON</button>
         <button class="btn" id="print" type="button">Print / PDF</button>
@@ -93,8 +98,55 @@ Admin.start("reports", "Attendance Reports", async (root) => {
     root.querySelectorAll(".custom").forEach((el) => { el.hidden = $("preset").value !== "custom"; });
     table.reload();
   });
-  $("csv").addEventListener("click", () => Admin.download(exportUrl("csv")));
-  $("json").addEventListener("click", () => Admin.download(exportUrl("json")));
+  function exportCurrent(format) {
+    Admin.fetchDownload(exportUrl(format)).catch((err) => Admin.toast(err.message, "error"));
+  }
+
+  /* One step for every report: same dates and people, all in a single download. */
+  function bulkExport() {
+    const m = Admin.formModal({
+      title: "Export All Reports", wide: true, submitLabel: "Build & Download",
+      intro: "Each report becomes its own sheet in one Excel workbook.",
+      values: { preset: "this_month", from: today, to: today, format: "xlsx", reports: list.items.map((r) => r.key) },
+      fields: [
+        { name: "preset", label: "Date range", type: "select", options: PRESETS },
+        { name: "format", label: "File type", type: "select", options: [["xlsx", "Excel (.xlsx)"], ["csv", "CSV files (.zip)"], ["json", "JSON"]] },
+        { name: "from", label: "From", type: "date" },
+        { name: "to", label: "To", type: "date" },
+        { name: "department", label: "Department", type: "select", options: [["", "All departments"], ...lookups.departments.map((d) => [d, d])] },
+        { name: "shift", label: "Shift", type: "select", options: [["", "All shifts"], ...lookups.shifts.map((s) => [s.id, s.name])] },
+        { name: "employees", label: "Selected people (leave all unticked for everyone)", type: "checklist", full: true,
+          options: lookups.employees.map((e) => [e.employee_id, `${e.employee_id} - ${e.name}`]) },
+        { name: "reports", label: "Reports to include", type: "checklist", full: true, options: list.items.map((r) => [r.key, r.title]) },
+      ],
+      onSubmit: async (v) => {
+        if (!v.reports.length) throw new Error("Choose at least one report.");
+        if (v.preset === "custom" && !(v.from && v.to)) throw new Error("Choose both the From and To dates.");
+        await Admin.fetchDownload(`/api/admin/reports-export?${Admin.queryString({
+          preset: v.preset,
+          from: v.preset === "custom" ? v.from : "",
+          to: v.preset === "custom" ? v.to : "",
+          department: v.department,
+          shift: v.shift,
+          employees: v.employees.join(","),
+          reports: v.reports.join(","),
+          format: v.format,
+        })}`);
+        Admin.toast("Reports downloaded.", "success");
+      },
+    });
+    const form = m.body.querySelector("form");
+    const preset = form.querySelector('[name="preset"]');
+    const customDates = ["from", "to"].map((n) => form.querySelector(`[name="${n}"]`).closest(".field"));
+    const toggleDates = () => customDates.forEach((f) => { f.hidden = preset.value !== "custom"; });
+    preset.addEventListener("change", toggleDates);
+    toggleDates();
+  }
+
+  $("bulk").addEventListener("click", bulkExport);
+  $("xlsx").addEventListener("click", () => exportCurrent("xlsx"));
+  $("csv").addEventListener("click", () => exportCurrent("csv"));
+  $("json").addEventListener("click", () => exportCurrent("json"));
   $("print").addEventListener("click", printReport);
   await table.refresh();
 });

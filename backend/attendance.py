@@ -70,7 +70,9 @@ def compute_metrics(rec, settings):
                     m["early_departure_seconds"] = -excess
             if excess > 0 and excess >= threshold:
                 m["overtime_seconds"] = excess
-            half_day = m["working_seconds"] < scheduled_net * settings["half_day_percent"] / 100
+            # A 24-hour shift is a window to clock in, not hours expected to be worked.
+            if scheduled_gross < 23 * 3600:
+                half_day = m["working_seconds"] < scheduled_net * settings["half_day_percent"] / 100
 
     if not clock_in:
         status = rec["status"]
@@ -382,6 +384,9 @@ def record_filters(args):
     if args.get("employee"):
         where.append("e.employee_id = ? COLLATE NOCASE")
         params.append(args["employee"])
+    if args.get("employees"):
+        where.append(f"e.employee_id IN ({', '.join('?' * len(args['employees']))})")
+        params += args["employees"]
     if args.get("q"):
         pattern = "%" + like_escape(args["q"]) + "%"
         where.append("(e.employee_id LIKE ? ESCAPE '\\' OR e.name LIKE ? ESCAPE '\\')")
@@ -411,7 +416,7 @@ def build_roster(conn, start, end, settings, now, filters=None):
     tz = business_tz(settings)
     index = schedule.ScheduleIndex(conn, start, end)
     by_key = {}
-    record_args = {k: filters.get(k) for k in ("employee", "department", "q")}
+    record_args = {k: filters.get(k) for k in ("employee", "employees", "department", "q")}
     for rec in fetch_records(conn, {**record_args, "from": start, "to": end}):
         by_key.setdefault((rec["employee_id"], rec["attendance_date"]), []).append(rec)
 
@@ -419,6 +424,9 @@ def build_roster(conn, start, end, settings, now, filters=None):
     if filters.get("employee"):
         where.append("employee_id = ? COLLATE NOCASE")
         params.append(filters["employee"])
+    if filters.get("employees"):
+        where.append(f"employee_id IN ({', '.join('?' * len(filters['employees']))})")
+        params += filters["employees"]
     if filters.get("department"):
         where.append("department = ?")
         params.append(filters["department"])

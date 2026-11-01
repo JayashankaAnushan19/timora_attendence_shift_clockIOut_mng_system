@@ -18,6 +18,7 @@ It runs on your own computer or local network. It needs no cloud service, and al
 - [Sample data](#sample-data)
 - [How attendance rules work](#how-attendance-rules-work)
 - [Roles and permissions](#roles-and-permissions)
+- [Reports and Excel export](#reports-and-excel-export)
 - [Backup and restore](#backup-and-restore)
 - [Troubleshooting](#troubleshooting)
 - [Project structure](#project-structure)
@@ -32,7 +33,8 @@ It runs on your own computer or local network. It needs no cloud service, and al
 - **Shift assignments:** individual or bulk, with effective dates and full history
 - **Attendance tracking:** late arrival, early departure, overtime, half day and missing clock-outs
 - **Corrections with a permanent trail:** every change records who, when, the old value, the new value and the reason
-- **Reports:** nine report types with filters, sorting and pagination, exportable as CSV or JSON, or printed to PDF
+- **Reports:** nine report types with filters, sorting and pagination, exportable as Excel, CSV or JSON, or printed to PDF
+- **Export All Reports:** every report for the chosen dates and people, in one Excel workbook
 - **Access control:** Super Admin, Admin, Attendance Manager and Viewer roles, enforced by the server
 - **Backup and restore:** database backups, data exports and an automatic safety copy before every restore
 
@@ -99,15 +101,7 @@ Log in to the admin panel, then:
 
 1. **Set your timezone.** In **System Settings**, set **Business Timezone**. It starts as UTC, and all clock times and shift rules follow it, so this comes first.
 2. **Enter your company details.** Set the company name and, if you like, upload a logo.
-3. **Review the shifts.** Under **Shifts**, adjust the four starter shifts or create your own. They run Monday to Friday.
-
-   | Shift | Hours |
-   |---|---|
-   | Morning | 09:00 AM - 06:00 PM |
-   | Evening | 02:00 PM - 11:00 PM |
-   | Night | 10:00 PM - 07:00 AM |
-   | Flexible | 08:00 AM - 08:00 PM |
-
+3. **Review the shift.** Timora starts with one **Default Shift**, from 07:00 AM to 07:00 AM the next day, every day. Employees can clock in at any time, and each attendance day starts at 7 AM. Under **Shifts**, edit it or create your own.
 4. **Add holidays.** On the **Shifts** page, open the **Holidays & Non-Working Days** tab.
 5. **Add employees.** Under **Employees**, add each person and choose their shift. IDs are generated automatically.
 6. **Add other administrators, if needed.** Use **User Access Management**.
@@ -196,7 +190,7 @@ To try Timora with 10 sample employees, stop Timora and run this in the Timora f
 
 On macOS or Linux, use `.venv/bin/python` instead. It only works while there are no employees.
 
-It also adds a **Demo All-Day Shift**, which is open at any time on any day. EM001, EM002 and EM003 use it, so you can try clocking in straight away.
+All of them use the Default Shift, so you can try clocking in straight away.
 
 **To remove sample data:** employees cannot be deleted, by design. Stop Timora and delete `database/timora.db`. This erases **all** data, including settings and admin accounts, and a new empty database is created on the next start.
 
@@ -219,6 +213,7 @@ The examples use a 09:00 AM - 06:00 PM shift with a 10-minute grace period:
 - **Clock-in window:** opens before the shift by the early allowance (default 60 minutes) and closes at the shift end.
 - **Breaks:** the shift's break is deducted from worked time when the employee worked at least half of the scheduled shift.
 - **Flexible shifts:** never flagged late or early, and overtime is based on hours worked.
+- **24-hour shifts:** setting the end time equal to the start time makes the shift a full 24-hour window. Marked flexible, as the Default Shift is, it shows Present once the employee clocks out, with no late, early, half-day or overtime flags. A clock-in at 03:00 AM counts towards the attendance day that started at 7 AM the day before.
 - **One status per record:** when several apply, the priority is Half Day, Late, Early Departure, Overtime, then Present. The durations are kept regardless, so reports count them all.
 - **Absent:** worked out from the schedule when a scheduled shift ends with no attendance.
 - **Past records:** each record keeps the shift times it was worked under, so editing a shift later never changes history.
@@ -240,6 +235,19 @@ Most of these values can be changed per shift or in **System Settings**.
 | Audit log | Yes | No | No | No |
 
 Super Admins can change what each other role can do under **User Access Management > Roles & Permissions**. Super Admin itself always has full access, and at least one active Super Admin must remain.
+
+## Reports and Excel export
+
+On **Attendance Reports**, use **Excel**, **CSV**, **JSON** or **Print / PDF** to export the report on screen.
+
+To get everything at once, choose **Export All Reports**:
+
+1. Choose a date range: today, yesterday, this or last week, this or last month, or custom dates.
+2. Optionally narrow it to selected people, a department or a shift.
+3. Choose which reports to include. All nine are ticked by default.
+4. Choose **Build & Download**.
+
+The Excel workbook has an **Overview** sheet showing the filters used, then one sheet per report. Dates and durations are real Excel values, so they can be sorted, filtered and added up. You can also download the reports as a ZIP of CSV files or as JSON.
 
 ## Backup and restore
 

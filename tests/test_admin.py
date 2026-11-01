@@ -221,7 +221,6 @@ def test_shift_validation_and_overnight_flag(admin, make_shift):
     shift = admin.get(f"/api/admin/shifts/{shift_id}").json["shift"]
     assert shift["is_overnight"] is True
     base = {"name": "X", "code": "X1", "start_time": "09:00", "end_time": "09:00", "working_days": [0]}
-    assert admin.post("/api/admin/shifts", base).status_code == 400
     assert admin.post("/api/admin/shifts", {**base, "end_time": "25:00"}).status_code == 400
     assert admin.post("/api/admin/shifts", {**base, "end_time": "10:00", "working_days": []}).status_code == 400
     assert admin.post("/api/admin/shifts", {**base, "end_time": "10:00", "code": "NGT"}).status_code == 409

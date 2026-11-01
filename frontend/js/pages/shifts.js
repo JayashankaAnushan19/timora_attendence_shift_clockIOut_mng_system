@@ -27,7 +27,7 @@ Admin.start("shifts", "Shifts", async (root) => {
           { name: "name", label: "Shift Name", required: true },
           { name: "code", label: "Shift Code", required: true, help: "Letters, numbers, - and _ only." },
           { name: "start_time", label: "Shift Start Time", type: "time", required: true },
-          { name: "end_time", label: "Shift End Time", type: "time", required: true, help: "An end time before the start time makes this an overnight shift." },
+          { name: "end_time", label: "Shift End Time", type: "time", required: true, help: "Before the start time means overnight. The same time as the start means a full 24 hours." },
           { name: "working_days", label: "Applicable Working Days", type: "weekdays", full: true },
           { name: "grace_minutes", label: "Grace Period (minutes)", type: "number", min: 0, max: 240 },
           { name: "break_minutes", label: "Break Duration (minutes)", type: "number", min: 0, max: 480 },
@@ -52,7 +52,7 @@ Admin.start("shifts", "Shifts", async (root) => {
         title: s.name, wide: true, footer: false,
         body: `<dl class="dl">
             <dt>Code</dt><dd>${esc(s.code)}</dd>
-            <dt>Hours</dt><dd>${esc(T.fmtShiftTime(s.start_time))} – ${esc(T.fmtShiftTime(s.end_time))}${s.is_overnight ? '<span class="tag">Overnight</span>' : ""}${s.is_flexible ? '<span class="tag">Flexible</span>' : ""}</dd>
+            <dt>Hours</dt><dd>${esc(T.fmtShiftTime(s.start_time))} – ${esc(T.fmtShiftTime(s.end_time))}${s.is_overnight ? '<span class="tag">Overnight</span>' : ""}${s.is_24h ? '<span class="tag">24 hours</span>' : ""}${s.is_flexible ? '<span class="tag">Flexible</span>' : ""}</dd>
             <dt>Working days</dt><dd>${esc(daysLabel(s.working_days))}</dd>
             <dt>Grace period</dt><dd>${esc(s.grace_minutes)} minutes</dd>
             <dt>Break</dt><dd>${esc(s.break_minutes)} minutes</dd>
@@ -91,7 +91,7 @@ Admin.start("shifts", "Shifts", async (root) => {
     const table = Admin.table(panel.querySelector("#shiftTbl"), {
       empty: "No shifts yet.",
       columns: [
-        { key: "name", label: "Name", render: (s) => `${esc(s.name)}${s.is_overnight ? '<span class="tag">Overnight</span>' : ""}${s.is_flexible ? '<span class="tag">Flexible</span>' : ""}` },
+        { key: "name", label: "Name", render: (s) => `${esc(s.name)}${s.is_overnight ? '<span class="tag">Overnight</span>' : ""}${s.is_24h ? '<span class="tag">24 hours</span>' : ""}${s.is_flexible ? '<span class="tag">Flexible</span>' : ""}` },
         { key: "code", label: "Code" },
         { key: "hours", label: "Hours", render: (s) => `${esc(T.fmtShiftTime(s.start_time))} – ${esc(T.fmtShiftTime(s.end_time))}` },
         { key: "days", label: "Working Days", render: (s) => esc(daysLabel(s.working_days)) },

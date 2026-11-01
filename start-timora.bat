@@ -65,7 +65,7 @@ rem ---- 3. Dependencies, installed only when something changed ----
 if not exist "%STAMP%" goto install_deps
 fc /b "%STAMP%" "%~dp0requirements.txt" >nul 2>&1
 if errorlevel 1 goto install_deps
-"%VENV_PY%" -c "import flask, waitress, tzdata" >nul 2>&1
+"%VENV_PY%" -c "import flask, waitress, tzdata, openpyxl" >nul 2>&1
 if errorlevel 1 goto install_deps
 goto start
 
