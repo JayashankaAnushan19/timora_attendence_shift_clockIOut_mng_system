@@ -84,7 +84,9 @@
     $("company").textContent = next.company_name;
     $("tz").textContent = `Time zone: ${next.timezone}`;
     $("clockWrap").hidden = !next.clock_enabled;
-    $("brandLogo").src = next.logo_rev ? `/api/public/logo?v=${encodeURIComponent(next.logo_rev)}` : "/assets/img/logo.svg";
+    const logo = next.logo_rev ? `/api/public/logo?v=${encodeURIComponent(next.logo_rev)}` : "/assets/img/logo.svg";
+    $("brandLogo").src = logo;
+    $("bizLogo").src = logo;
     renderClock();
   }
 
@@ -376,7 +378,63 @@
     }, config.terminal_idle_reset_seconds * 1000);
   }
 
+  /* ---------- Company card ---------- */
+  const CARD_ICONS = {
+    phone: "M5 4h4l2 5-2.500 1.500a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A15 15 0 0 1 3 6a2 2 0 0 1 2-2z",
+    email: "M3 6h18v12H3zM3 7l9 7 9-7",
+    website: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18",
+    address: "M12 21s7-6.500 7-12a7 7 0 1 0-14 0c0 5.500 7 12 7 12zM12 11.500a2.500 2.500 0 1 0 0-5 2.500 2.500 0 0 0 0 5z",
+  };
+
+  function cardRow(kind, text, href) {
+    const li = document.createElement("li");
+    const icon = document.createElement("span");
+    icon.className = "biz-icon";
+    icon.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${CARD_ICONS[kind]}"/></svg>`;
+    const value = document.createElement(href ? "a" : "span");
+    value.textContent = text;
+    if (href) {
+      value.href = href;
+      if (kind === "website") {
+        value.target = "_blank";
+        value.rel = "noopener noreferrer";
+      }
+    }
+    li.append(icon, value);
+    return li;
+  }
+
+  function openCompanyCard() {
+    const profile = config.company_profile || {};
+    const show = (id, text) => { $(id).textContent = text || ""; $(id).hidden = !text; };
+    $("bizName").textContent = config.company_name;
+    show("bizTagline", profile.tagline);
+    show("bizAbout", profile.about);
+    show("bizFoot", profile.registration ? `Reg. No: ${profile.registration}` : "");
+
+    const rows = $("bizRows");
+    rows.replaceChildren();
+    if (profile.phone) rows.append(cardRow("phone", profile.phone, `tel:${profile.phone.replace(/[^0-9+]/g, "")}`));
+    if (profile.email) rows.append(cardRow("email", profile.email, `mailto:${profile.email}`));
+    if (profile.website) rows.append(cardRow("website", profile.website.replace(/^https?:\/\//i, ""), /^https?:\/\//i.test(profile.website) ? profile.website : null));
+    if (profile.address) rows.append(cardRow("address", profile.address));
+    $("bizEmpty").hidden = Boolean(rows.children.length || profile.about);
+
+    $("bizBack").hidden = false;
+    $("bizClose").focus();
+  }
+
+  function closeCompanyCard() {
+    if ($("bizBack").hidden) return;
+    $("bizBack").hidden = true;
+    $("company").focus();
+  }
+
   /* ---------- Start ---------- */
+  $("company").addEventListener("click", openCompanyCard);
+  $("bizClose").addEventListener("click", closeCompanyCard);
+  $("bizBack").addEventListener("click", (event) => { if (event.target === $("bizBack")) closeCompanyCard(); });
+  document.addEventListener("keydown", (event) => { if (event.key === "Escape") closeCompanyCard(); });
   $("search").addEventListener("input", onSearchInput);
   $("search").addEventListener("keydown", onSearchKey);
   $("pickerBtn").addEventListener("click", () => { if (pickerOpen) closePicker(); else openPicker(); });

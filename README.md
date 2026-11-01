@@ -15,9 +15,11 @@ It runs on your own computer or local network. It needs no cloud service, and al
 - [Daily use](#daily-use)
 - [Manual install (Windows, macOS, Linux)](#manual-install-windows-macos-linux)
 - [Use from other computers on the network](#use-from-other-computers-on-the-network)
-- [Sample data](#sample-data)
+- [Deleting a shift](#deleting-a-shift)
+- [Starter data](#starter-data)
 - [How attendance rules work](#how-attendance-rules-work)
 - [Overtime and pay](#overtime-and-pay)
+- [Salary](#salary)
 - [Roles and permissions](#roles-and-permissions)
 - [Reports and Excel export](#reports-and-excel-export)
 - [Backup and restore](#backup-and-restore)
@@ -36,6 +38,7 @@ It runs on your own computer or local network. It needs no cloud service, and al
 - **Corrections with a permanent trail:** every change records who, when, the old value, the new value and the reason
 - **Employee types:** Technician, Manager and Cleaner by default, and you can change the list
 - **Pay details and overtime:** basic salary and OT rate per employee, with overtime hours added by managers
+- **Salary:** monthly salary with allowances, deductions and overtime, and a printable A5 salary slip
 - **Reports:** eleven report types with filters, sorting and pagination, exportable as Excel, CSV or JSON, or printed to PDF
 - **Export All Reports:** every report for the chosen dates and people, in one Excel workbook
 - **Access control:** Super Admin, Admin, Attendance Manager and Viewer roles, enforced by the server
@@ -103,7 +106,7 @@ You must choose a new password the first time you log in. This default is public
 Log in to the admin panel, then:
 
 1. **Set your timezone.** In **System Settings**, set **Business Timezone**. It starts as UTC, and all clock times and shift rules follow it, so this comes first.
-2. **Enter your company details.** Set the company name and, if you like, upload a logo.
+2. **Enter your company details.** Set the company name and logo, then fill in **Company Profile**. These appear on salary slips and on the company card, which opens when anyone clicks the company name on the attendance screen. Everything on the card is visible without logging in.
 3. **Review the shifts.** Under **Shifts**, edit these or create your own:
 
    | Shift | Starts | Ends | Days |
@@ -193,19 +196,21 @@ By default, only the computer running Timora can reach it. To let other computer
 
 Traffic is not encrypted on plain HTTP, so use this only on a network you trust. Read the [security notes](#security-notes) first.
 
-## Sample data
+## Deleting a shift
 
-To try Timora with 10 sample employees, stop Timora and run this in the Timora folder:
+Super Admins and Admins can delete a shift from the **Shifts** page. Other roles cannot, even if they can manage shifts.
 
-```bash
-.venv\Scripts\python.exe manage.py seed-demo
-```
+- Move everyone off the shift first under **Shift Assignments**. A shift with employees assigned today or later cannot be deleted.
+- At least one shift must remain.
+- Past attendance records keep the deleted shift's name, and its code can be used again.
 
-On macOS or Linux, use `.venv/bin/python` instead. It only works while there are no employees.
+To stop using a shift for now without removing it, choose **Deactivate** instead.
 
-All of them use the Default Shift, so you can try clocking in straight away.
+## Starter data
 
-**To remove sample data:** employees cannot be deleted, by design. Stop Timora and delete `database/timora.db`. This erases **all** data, including settings and admin accounts, and a new empty database is created on the next start.
+A new installation starts with the three starter shifts and one employee, **Heyshan Senaviratne** (`EM001`, Manager, on the Manager Shift). He comes from `config/starter_data.json`. His joining date is set to the installation date, so update it under **Employees**, along with his basic salary and OT rate.
+
+This data is added only once, to an empty system. To start again from nothing, stop Timora and delete `database/timora.db`. This erases **all** data, including settings and admin accounts.
 
 ## How attendance rules work
 
@@ -244,7 +249,21 @@ Most of these values can be changed per shift or in **System Settings**.
 - OT pay is added hours multiplied by the employee's OT rate per hour.
 - Each entry keeps the rate in force when it was added, so changing a rate later does not change earlier pay. Set the rate before adding overtime.
 - **Only hours added on the Overtime page count towards pay.** Overtime worked out from clock-out times appears in the **Overtime Report** but is not paid automatically, so nothing is paid twice or without a manager's approval.
-- Timora reports OT pay. It does not run payroll, and the basic salary is stored for reference.
+- Added overtime is separate from attendance. It does not change clock times, worked hours or status, and it appears as its own line on the salary slip.
+
+## Salary
+
+Open **Salary** in the admin panel, available to Super Admins and Admins, and choose a month to see everyone's pay. Choose **View** on an employee to:
+
+- Set their **basic salary** and **OT pay rate**.
+- Add **allowances** and **deductions**, each for every month from now on or for this month only.
+- See the calculation: gross pay is basic salary + allowances + overtime, and net salary is gross pay - deductions.
+- **Print** the salary slip.
+- **Finalize** the slip, which locks its amounts so later pay changes do not affect it. A finalized slip can be reopened.
+
+The slip is A5 width and is A5 height when everything fits. With more lines, the page grows taller so that every allowance and deduction is listed. To keep this size, choose **Save as PDF** or a printer that accepts custom paper sizes, and set scale to 100%. A printer loaded with fixed A5 paper may continue a long slip onto a second sheet.
+
+Basic salary is not reduced automatically for absence or for joining mid-month. Add a deduction when one is needed.
 
 ## Roles and permissions
 
@@ -255,9 +274,10 @@ Most of these values can be changed per shift or in **System Settings**.
 | View attendance | Yes | Yes | Yes | Yes | No |
 | Correct attendance, record leave | Yes | Yes | No | Yes | No |
 | Add and cancel overtime | Yes | Yes | Yes | No | No |
-| View and edit salary and OT rates, pay reports | Yes | Yes | No | No | No |
+| Salary, allowances, slips, OT rates, pay reports | Yes | Yes | No | No | No |
 | Manage employees | Yes | Yes | No | No | No |
 | Manage shifts and assignments | Yes | Yes | No | No | No |
+| Delete shifts | Yes | Yes | No | No | No |
 | Manage administrators and roles | Yes | No | No | No | No |
 | System settings | Yes | No | No | No | No |
 | Backup and restore | Yes | No | No | No | No |
@@ -324,12 +344,16 @@ If startup still fails, the details may be in `logs/timora-error.log`.
 │   ├── employees.py      Employee records and ID generation
 │   ├── shifts.py         Shifts, assignments, holidays
 │   ├── overtime.py       Added overtime
+│   ├── payroll.py        Monthly salary, allowances, deductions, slips
+│   ├── starter.py        Adds the starter employee to a new installation
 │   ├── dashboard.py      Dashboard data
 │   ├── reports.py        Reports and exports
 │   ├── settings.py       System settings
 │   └── backup.py         Backup, restore, data exports
 ├── frontend/             HTML, CSS and JavaScript, with no build step
-├── config/settings.json  Server address, port and file locations
+├── config/
+│   ├── settings.json     Server address, port and file locations
+│   └── starter_data.json Employee added to a new installation
 ├── tests/                Automated tests
 ├── database/             Live database (not committed)
 └── backups/              Backup files (not committed)
@@ -353,7 +377,6 @@ Business settings such as timezone and grace periods are stored in the database,
 ```bash
 python manage.py init                       # Create the database
 python manage.py reset-password <username>  # Set a new password
-python manage.py seed-demo                  # Add sample data to an empty system
 ```
 
 **Environment variables** override `config/settings.json`: `TIMORA_HOST`, `TIMORA_PORT`, `TIMORA_DATABASE` and `TIMORA_BACKUP_DIR`.
@@ -371,7 +394,7 @@ Content-Type: application/json
 {
   "success": true,
   "employee_id": "EM001",
-  "employee_name": "John Smith",
+  "employee_name": "Heyshan Senaviratne",
   "action": "clock_in",
   "timestamp": "2026-10-31T09:00:00Z",
   "local_time": "09:00:00 AM",
@@ -385,7 +408,7 @@ Content-Type: application/json
 Errors use the same format:
 
 ```json
-{ "success": false, "code": "DUPLICATE_CLOCK_IN", "message": "John Smith is already clocked in." }
+{ "success": false, "code": "DUPLICATE_CLOCK_IN", "message": "Heyshan Senaviratne is already clocked in." }
 ```
 
 Resending the same `request_id` returns the original result instead of recording a second event.

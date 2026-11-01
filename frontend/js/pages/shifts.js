@@ -97,6 +97,20 @@ Admin.start("shifts", "Shifts", async (root) => {
       } catch (err) { Admin.toast(err.message, "error"); }
     }
 
+    async function remove(shift) {
+      const ok = await Admin.confirm({
+        title: "Delete shift",
+        message: `Delete ${shift.name}? It will no longer be available. Past attendance records keep this shift.`,
+        confirmLabel: "Delete", danger: true,
+      });
+      if (!ok) return;
+      try {
+        const r = await Admin.call("DELETE", `/api/admin/shifts/${shift.id}`);
+        Admin.toast(r.message, "success");
+        await table.refresh();
+      } catch (err) { Admin.toast(err.message, "error"); }
+    }
+
     const table = Admin.table(panel.querySelector("#shiftTbl"), {
       empty: "No shifts yet.",
       columns: [
@@ -116,6 +130,7 @@ Admin.start("shifts", "Shifts", async (root) => {
             ? { label: "Deactivate", kind: "danger", onClick: () => toggle(s) }
             : { label: "Activate", onClick: () => toggle(s) });
         }
+        if (Admin.can("shifts.delete")) list.push({ label: "Delete", kind: "danger", onClick: () => remove(s) });
         return list;
       },
       load: async () => {

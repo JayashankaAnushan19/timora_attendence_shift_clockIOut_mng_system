@@ -56,7 +56,7 @@
     </main>
 
     <footer class="t-foot">
-      <span id="company"></span>
+      <button class="t-company" id="company" type="button" title="View company profile"></button>
       <a href="/admin">Admin login</a>
     </footer>
   </div>
@@ -69,6 +69,25 @@
       <div class="what" id="sAction"></div>
       <div class="when" id="sTime"></div>
       <div class="note" id="sNote"></div>
+    </div>
+  </div>
+
+  <div class="biz-back" id="bizBack" hidden>
+    <div class="biz-card" role="dialog" aria-modal="true" aria-labelledby="bizName">
+      <button class="biz-close" id="bizClose" type="button" aria-label="Close">&times;</button>
+      <div class="biz-top">
+        <img id="bizLogo" src="/assets/img/logo.svg" alt="">
+        <div class="biz-identity">
+          <h2 id="bizName"></h2>
+          <p id="bizTagline" hidden></p>
+        </div>
+      </div>
+      <div class="biz-body">
+        <p class="biz-about" id="bizAbout" hidden></p>
+        <ul class="biz-rows" id="bizRows"></ul>
+        <p class="biz-empty" id="bizEmpty" hidden>Company details can be added by an administrator in System Settings.</p>
+      </div>
+      <div class="biz-foot" id="bizFoot" hidden></div>
     </div>
   </div>
 

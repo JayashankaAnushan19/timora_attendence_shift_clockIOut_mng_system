@@ -78,7 +78,7 @@ def _today(conn):
 
 
 def require_active_shift(conn, shift_id):
-    row = conn.execute("SELECT * FROM shifts WHERE id = ?", (shift_id,)).fetchone()
+    row = conn.execute("SELECT * FROM shifts WHERE id = ? AND deleted_at IS NULL", (shift_id,)).fetchone()
     if row is None:
         raise ApiError("That shift does not exist.", code="VALIDATION_ERROR", field="shift_id")
     if row["status"] != "active":
@@ -97,7 +97,7 @@ def list_shifts():
         "JOIN employees e ON e.id = sa.employee_pk "
         "WHERE sa.shift_id = s.id AND sa.status = 'active' AND e.status = 'active' "
         "AND sa.effective_from <= ? AND (sa.effective_to IS NULL OR sa.effective_to >= ?)) AS assigned "
-        "FROM shifts s ORDER BY s.status, s.start_time",
+        "FROM shifts s WHERE s.deleted_at IS NULL ORDER BY s.status, s.start_time",
         (today, today),
     ).fetchall()
     return ok(items=[_shift_out(r, r["assigned"]) for r in rows])
@@ -126,7 +126,7 @@ def create_shift():
 @require("shifts.view")
 def shift_detail(shift_id):
     conn = get_db()
-    row = conn.execute("SELECT * FROM shifts WHERE id = ?", (shift_id,)).fetchone()
+    row = conn.execute("SELECT * FROM shifts WHERE id = ? AND deleted_at IS NULL", (shift_id,)).fetchone()
     if row is None:
         raise ApiError("Shift not found.", 404, "NOT_FOUND")
     today = _today(conn)
@@ -147,7 +147,7 @@ def update_shift(shift_id):
     conn = get_db()
     fields = _shift_fields(json_body(), get_settings(conn))
     with transaction(conn):
-        before = conn.execute("SELECT * FROM shifts WHERE id = ?", (shift_id,)).fetchone()
+        before = conn.execute("SELECT * FROM shifts WHERE id = ? AND deleted_at IS NULL", (shift_id,)).fetchone()
         if before is None:
             raise ApiError("Shift not found.", 404, "NOT_FOUND")
         if conn.execute("SELECT 1 FROM shifts WHERE code = ? AND id <> ?",
@@ -167,13 +167,55 @@ def set_shift_status(shift_id):
     status = get_enum(json_body(), "status", ("active", "inactive"), "Status")
     conn = get_db()
     with transaction(conn):
-        if conn.execute("SELECT 1 FROM shifts WHERE id = ?", (shift_id,)).fetchone() is None:
+        if conn.execute("SELECT 1 FROM shifts WHERE id = ? AND deleted_at IS NULL", (shift_id,)).fetchone() is None:
             raise ApiError("Shift not found.", 404, "NOT_FOUND")
         conn.execute("UPDATE shifts SET status = ?, deactivated_on = ?, updated_at = ? WHERE id = ?",
                      (status, _today(conn) if status == "inactive" else None,
                       timeutil.to_iso(timeutil.now_utc()), shift_id))
         audit(conn, f"shift.{status}", "shift", shift_id)
     return ok(message="Shift activated." if status == "active" else "Shift deactivated.")
+
+
+@bp.delete("/api/admin/shifts/<int:shift_id>")
+@require("shifts.delete")
+def delete_shift(shift_id):
+    """A shift with history is hidden rather than erased, so past records keep their shift."""
+    conn = get_db()
+    today = _today(conn)
+    stamp = timeutil.to_iso(timeutil.now_utc())
+    with transaction(conn):
+        shift = conn.execute("SELECT * FROM shifts WHERE id = ? AND deleted_at IS NULL", (shift_id,)).fetchone()
+        if shift is None:
+            raise ApiError("Shift not found.", 404, "NOT_FOUND")
+        if conn.execute("SELECT COUNT(*) FROM shifts WHERE deleted_at IS NULL").fetchone()[0] <= 1:
+            raise ApiError("At least one shift must remain. Create another shift before deleting this one.",
+                           409, "LAST_SHIFT")
+        assigned = conn.execute(
+            "SELECT COUNT(DISTINCT sa.employee_pk) FROM shift_assignments sa JOIN employees e ON e.id = sa.employee_pk "
+            "WHERE sa.shift_id = ? AND sa.status = 'active' AND e.status = 'active' "
+            "AND (sa.effective_to IS NULL OR sa.effective_to >= ?)", (shift_id, today),
+        ).fetchone()[0]
+        if assigned:
+            raise ApiError(f"{assigned} employee(s) are still assigned to {shift['name']}. "
+                           "Move them to another shift under Shift Assignments, then delete it.",
+                           409, "SHIFT_IN_USE", assigned=assigned)
+        has_history = (
+            conn.execute("SELECT 1 FROM attendance WHERE shift_id = ? LIMIT 1", (shift_id,)).fetchone()
+            or conn.execute("SELECT 1 FROM shift_assignments WHERE shift_id = ? AND status = 'active' LIMIT 1",
+                            (shift_id,)).fetchone()
+        )
+        if has_history:
+            # Frees the code for reuse. Inactive means it stops applying from today.
+            conn.execute(
+                "UPDATE shifts SET code = ?, status = 'inactive', deactivated_on = COALESCE(deactivated_on, ?), "
+                "deleted_at = ?, updated_at = ? WHERE id = ?",
+                (f"{shift['code']}~{shift_id}", today, stamp, stamp, shift_id),
+            )
+        else:
+            conn.execute("DELETE FROM shift_assignments WHERE shift_id = ?", (shift_id,))
+            conn.execute("DELETE FROM shifts WHERE id = ?", (shift_id,))
+        audit(conn, "shift.delete", "shift", shift_id, {"name": shift["name"], "code": shift["code"]})
+    return ok(message=f"{shift['name']} deleted. Past attendance records are unchanged.")
 
 
 # --- Assignments -----------------------------------------------------------

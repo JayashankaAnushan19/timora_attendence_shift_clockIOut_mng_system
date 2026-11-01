@@ -1,0 +1,11 @@
+{
+  "employees": [
+    {
+      "name": "Heyshan Senaviratne",
+      "employee_type": "Manager",
+      "department": "Management",
+      "designation": "Manager",
+      "shift_code": "MANAGER"
+    }
+  ]
+}

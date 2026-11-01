@@ -218,7 +218,7 @@ def export_config():
     settings = get_settings(conn)
     shifts = [dict(r) for r in conn.execute(
         "SELECT name, code, start_time, end_time, working_days, grace_minutes, break_minutes, "
-        "early_clock_in_minutes, late_clock_out_minutes, is_flexible, status FROM shifts")]
+        "early_clock_in_minutes, late_clock_out_minutes, is_flexible, status FROM shifts WHERE deleted_at IS NULL")]
     roles = [{"name": r["name"], "permissions": json.loads(r["permissions"])}
              for r in conn.execute("SELECT name, permissions FROM roles")]
     holidays = [dict(r) for r in conn.execute("SELECT date, name, type FROM holidays ORDER BY date")]

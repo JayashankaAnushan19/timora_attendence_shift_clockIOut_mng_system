@@ -13,7 +13,7 @@ from werkzeug.security import generate_password_hash
 
 from . import timeutil
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 4
 
 DEFAULT_ADMIN_USERNAME = "admin"
 DEFAULT_ADMIN_PASSWORD = "admin@123"
@@ -24,6 +24,7 @@ ALL_PERMISSIONS = [
     "employees.manage",
     "shifts.view",
     "shifts.manage",
+    "shifts.delete",
     "attendance.view",
     "attendance.manage",
     "reports.view",
@@ -40,7 +41,7 @@ SUPER_ADMIN = "Super Admin"
 DEFAULT_ROLES = [
     (SUPER_ADMIN, "Full system access.", ALL_PERMISSIONS),
     ("Admin", "Manage employees, shifts and attendance; generate reports.",
-     ["dashboard.view", "employees.view", "employees.manage", "shifts.view", "shifts.manage",
+     ["dashboard.view", "employees.view", "employees.manage", "shifts.view", "shifts.manage", "shifts.delete",
       "attendance.view", "attendance.manage", "reports.view", "overtime.manage", "payroll.manage"]),
     ("Manager", "Add overtime for employees; view attendance and reports.",
      ["dashboard.view", "attendance.view", "reports.view", "overtime.manage"]),
@@ -113,6 +114,7 @@ CREATE TABLE IF NOT EXISTS shifts (
     is_flexible            INTEGER NOT NULL DEFAULT 0,
     status                 TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
     deactivated_on         TEXT,
+    deleted_at             TEXT,
     created_at             TEXT NOT NULL,
     updated_at             TEXT NOT NULL
 );
@@ -198,6 +200,33 @@ CREATE TABLE IF NOT EXISTS overtime_entries (
 );
 CREATE INDEX IF NOT EXISTS ix_overtime_employee_date ON overtime_entries(employee_pk, work_date);
 CREATE INDEX IF NOT EXISTS ix_overtime_date ON overtime_entries(work_date);
+
+-- Allowances and deductions. A one-month item has start_month = end_month;
+-- a repeating item has no end_month until it is removed.
+CREATE TABLE IF NOT EXISTS salary_items (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    employee_pk  INTEGER NOT NULL REFERENCES employees(id) ON DELETE RESTRICT,
+    kind         TEXT NOT NULL CHECK (kind IN ('allowance', 'deduction')),
+    name         TEXT NOT NULL,
+    amount_cents INTEGER NOT NULL CHECK (amount_cents > 0),
+    start_month  TEXT NOT NULL,
+    end_month    TEXT,
+    status       TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'removed')),
+    created_by   TEXT NOT NULL,
+    created_at   TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ix_salary_items_employee ON salary_items(employee_pk, start_month);
+
+-- A finalized slip, stored whole so later pay changes can't alter it.
+CREATE TABLE IF NOT EXISTS salary_slips (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    employee_pk  INTEGER NOT NULL REFERENCES employees(id) ON DELETE RESTRICT,
+    month        TEXT NOT NULL,
+    data         TEXT NOT NULL,
+    finalized_by TEXT NOT NULL,
+    finalized_at TEXT NOT NULL,
+    UNIQUE (employee_pk, month)
+);
 
 CREATE TABLE IF NOT EXISTS holidays (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -325,7 +354,9 @@ def init_db(path):
         conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         _seed(conn)
         if previous_version == 1:
-            _grant_admin_pay_permissions(conn)
+            _grant_admin_permissions(conn, "overtime.manage", "payroll.manage")
+        if 1 <= previous_version < 4:
+            _grant_admin_permissions(conn, "shifts.delete")
     finally:
         conn.close()
 
@@ -342,12 +373,14 @@ def _add_missing_columns(conn):
     ):
         if column not in existing:
             conn.execute(f"ALTER TABLE employees ADD COLUMN {column} {definition}")
+    if "deleted_at" not in {row["name"] for row in conn.execute("PRAGMA table_info(shifts)")}:
+        conn.execute("ALTER TABLE shifts ADD COLUMN deleted_at TEXT")
 
 
-def _grant_admin_pay_permissions(conn):
+def _grant_admin_permissions(conn, *added):
     row = conn.execute("SELECT permissions FROM roles WHERE name = 'Admin'").fetchone()
     if row:
-        permissions = set(json.loads(row["permissions"])) | {"overtime.manage", "payroll.manage"}
+        permissions = set(json.loads(row["permissions"])) | set(added)
         conn.execute("UPDATE roles SET permissions = ? WHERE name = 'Admin'",
                      (json.dumps(sorted(permissions)),))
 

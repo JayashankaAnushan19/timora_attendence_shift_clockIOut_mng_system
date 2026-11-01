@@ -64,7 +64,9 @@ Admin.start("attendance", "Attendance Records", async (root) => {
         values,
         fields: [
           { name: "attendance_date", label: "Attendance Date", type: "date", required: true },
-          { name: "shift_id", label: "Shift", type: "select", options: [["", "None"], ...lookups.shifts.map((s) => [s.id, s.name])] },
+          { name: "shift_id", label: "Shift", type: "select", options: [["", "None"], ...lookups.shifts.map((s) => [s.id, s.name]),
+            // A deleted shift stays selectable here, so correcting a record doesn't clear it.
+            ...(rec.shift_id && !lookups.shifts.some((s) => s.id === rec.shift_id) ? [[rec.shift_id, rec.shift_name]] : [])] },
           { name: "clock_in", label: "Clock In", type: "datetime-local", step: 1 },
           { name: "clock_out", label: "Clock Out", type: "datetime-local", step: 1 },
           { name: "status", label: "Status", type: "select", options: statusOptions },

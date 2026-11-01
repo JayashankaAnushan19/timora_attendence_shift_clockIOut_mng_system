@@ -15,6 +15,15 @@ Admin.start("settings", "System Settings", async (root) => {
       ["time_format", "Time Format", "select", [["12", "12-hour"], ["24", "24-hour"]]],
       ["default_working_days", "Default Working Days", "weekdays"],
     ]],
+    ["Company Profile", [
+      ["company_tagline", "Tagline", "text", "A short line under the company name."],
+      ["company_phone", "Phone", "text"],
+      ["company_email", "Email", "text"],
+      ["company_website", "Website", "text"],
+      ["company_registration", "Registration Number", "text"],
+      ["company_address", "Address", "text"],
+      ["company_about", "About the Company", "textarea", "Shown on the company card. Click the company name on the attendance screen to see it."],
+    ]],
     ["Attendance Settings", [
       ["default_grace_minutes", "Default Grace Period (minutes)", "number", "Used as the starting value for new shifts."],
       ["default_early_clock_in_minutes", "Early Clock-In Allowance (minutes)", "number", "Starting value for new shifts."],
@@ -54,6 +63,9 @@ Admin.start("settings", "System Settings", async (root) => {
     const id = `s_${key}`;
     if (type === "checkbox") {
       return `<div class="field field-check"><input id="${id}" data-key="${key}" data-type="checkbox" type="checkbox" ${v ? "checked" : ""}><label for="${id}">${esc(label)}</label></div>`;
+    }
+    if (type === "textarea") {
+      return `<div class="field"><label for="${id}">${esc(label)}</label><textarea id="${id}" data-key="${key}" data-type="text" rows="2">${esc(v)}</textarea>${help}</div>`;
     }
     if (type === "weekdays") {
       const boxes = Admin.WEEKDAYS.map((d, i) => `<label><input type="checkbox" data-day="${i}" ${v.includes(i) ? "checked" : ""}>${d}</label>`).join("");

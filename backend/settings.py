@@ -83,6 +83,32 @@ def _currency(value):
     return value.strip()
 
 
+def _optional_text(max_len):
+    def check(value):
+        if not isinstance(value, str) or len(value.strip()) > max_len:
+            raise ValueError(f"must be at most {max_len} characters")
+        return value.strip()
+    return check
+
+
+def _optional_email(value):
+    if not isinstance(value, str) or (value.strip() and not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", value.strip())):
+        raise ValueError("is not a valid email address")
+    return value.strip()
+
+
+def _optional_website(value):
+    """Only web addresses, because this becomes a clickable link on a public page."""
+    if not isinstance(value, str) or len(value.strip()) > 200 or re.search(r"\s", value.strip()):
+        raise ValueError("is not a valid web address")
+    value = value.strip()
+    if not value:
+        return value
+    if re.match(r"^[a-zA-Z][a-zA-Z0-9+.\-]*:", value) and not re.match(r"^https?://", value, re.I):
+        raise ValueError("must start with http:// or https://")
+    return value if re.match(r"^https?://", value, re.I) else f"https://{value}"
+
+
 def _prefix(value):
     if not isinstance(value, str) or not re.fullmatch(r"[A-Z]{1,5}", value):
         raise ValueError("must be 1-5 capital letters")
@@ -94,6 +120,13 @@ SCHEMA = {
     # General
     "company_name": ("My Company", _text(100), "Company name"),
     "app_name": ("Timora", _text(40), "Application name"),
+    "company_tagline": ("", _optional_text(120), "Company tagline"),
+    "company_about": ("", _optional_text(400), "About the company"),
+    "company_address": ("", _optional_text(200), "Company address"),
+    "company_phone": ("", _optional_text(40), "Company phone"),
+    "company_email": ("", _optional_email, "Company email"),
+    "company_website": ("", _optional_website, "Company website"),
+    "company_registration": ("", _optional_text(60), "Company registration number"),
     "timezone": ("UTC", _timezone, "Business timezone"),
     "date_format": ("long", _choice(*DATE_FORMATS), "Date format"),
     "time_format": ("12", _choice("12", "24"), "Time format"),
@@ -128,7 +161,7 @@ SCHEMA = {
 }
 
 # Not editable through the settings form.
-INTERNAL_KEYS = {"next_employee_number", "last_backup_at", "logo_rev", "logo_type"}
+INTERNAL_KEYS = {"next_employee_number", "last_backup_at", "logo_rev", "logo_type", "starter_data_loaded"}
 
 
 def get_settings(conn):
@@ -167,6 +200,8 @@ def public_config(settings):
     return {
         "app_name": settings["app_name"],
         "company_name": settings["company_name"],
+        "company_profile": {key: settings[f"company_{key}"] for key in (
+            "tagline", "about", "address", "phone", "email", "website", "registration")},
         "timezone": settings["timezone"],
         "date_format": settings["date_format"],
         "time_format": settings["time_format"],

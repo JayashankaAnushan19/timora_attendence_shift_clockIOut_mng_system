@@ -74,7 +74,7 @@ def lookups():
     departments = [r[0] for r in conn.execute(
         "SELECT DISTINCT department FROM employees WHERE department <> '' ORDER BY department")]
     shifts = [dict(r) for r in conn.execute(
-        "SELECT id, name, code, status FROM shifts ORDER BY name")]
+        "SELECT id, name, code, status FROM shifts WHERE deleted_at IS NULL ORDER BY name")]
     employees = [dict(r) for r in conn.execute(
         "SELECT employee_id, name, status FROM employees ORDER BY name COLLATE NOCASE")]
     return ok(departments=departments, shifts=shifts, employees=employees,

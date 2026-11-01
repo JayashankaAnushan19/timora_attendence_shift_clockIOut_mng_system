@@ -88,8 +88,11 @@ def open_when_ready(url, host_port):
 
 def create_application(cfg):
     from backend.app import create_app
+    from backend.starter import load_starter_data
     try:
-        return create_app()
+        app = create_app()
+        load_starter_data(app)
+        return app
     except PermissionError as exc:
         raise StartupProblem(
             f"Timora is not allowed to write to: {exc.filename or cfg['database']}",

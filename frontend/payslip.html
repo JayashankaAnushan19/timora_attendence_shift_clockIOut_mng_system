@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Salary Slip</title>
+  <link rel="icon" href="/assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/css/style.css">
+</head>
+<body class="slip-page">
+  <div class="slip-toolbar">
+    <button class="btn btn-primary" id="print" type="button" disabled>Print Slip</button>
+    <button class="btn" id="close" type="button">Close</button>
+    <span class="muted" id="hint"></span>
+  </div>
+  <div class="form-error slip-error" id="error" role="alert" hidden></div>
+  <article class="slip" id="slip" hidden></article>
+  <script src="/assets/js/main.js"></script>
+  <script src="/assets/js/payslip.js"></script>
+</body>
+</html>

@@ -7,6 +7,7 @@ Admin.start("users", "User Access Management", async (root) => {
     "employees.manage": "Manage employees",
     "shifts.view": "View shifts",
     "shifts.manage": "Manage shifts and assignments",
+    "shifts.delete": "Delete shifts",
     "attendance.view": "View attendance",
     "attendance.manage": "Correct attendance and leave",
     "reports.view": "View and export reports",
@@ -15,7 +16,7 @@ Admin.start("users", "User Access Management", async (root) => {
     "backup.manage": "Backup and restore",
     "audit.view": "View audit log",
     "overtime.manage": "Add and cancel overtime",
-    "payroll.manage": "View and edit salary and OT rates",
+    "payroll.manage": "View and edit salary, allowances and slips",
   };
 
   function renderUsers(panel) {
