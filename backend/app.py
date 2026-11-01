@@ -4,7 +4,7 @@ import sqlite3
 from flask import Flask, abort, jsonify, redirect, request, send_from_directory
 from werkzeug.exceptions import HTTPException
 
-from . import attendance, auth, backup, dashboard, employees, reports, settings, shifts, timeutil
+from . import attendance, auth, backup, dashboard, employees, overtime, reports, settings, shifts, timeutil
 from .api import ApiError, ok
 from .config import FRONTEND_DIR, load_config, load_secret_key
 from .database import close_db, get_db, init_db
@@ -16,6 +16,7 @@ ADMIN_PAGES = {
     "shifts": "shifts.view",
     "assignments": "shifts.view",
     "attendance": "attendance.view",
+    "overtime": "overtime.manage",
     "reports": "reports.view",
     "users": "users.manage",
     "settings": "settings.manage",
@@ -47,7 +48,7 @@ def create_app(overrides=None):
     init_db(cfg["database"])
     app.teardown_appcontext(close_db)
 
-    for module in (auth, settings, attendance, employees, shifts, dashboard, reports, backup):
+    for module in (auth, settings, attendance, employees, shifts, overtime, dashboard, reports, backup):
         app.register_blueprint(module.bp)
 
     _register_guards(app)

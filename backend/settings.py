@@ -68,6 +68,21 @@ def _flag(value):
     return value
 
 
+def _type_list(value):
+    if not isinstance(value, list) or not value or not all(isinstance(t, str) and t.strip() for t in value):
+        raise ValueError("must list at least one type")
+    cleaned = [t.strip() for t in value]
+    if any(len(t) > 40 for t in cleaned) or len({t.lower() for t in cleaned}) != len(cleaned):
+        raise ValueError("must be unique and at most 40 characters each")
+    return cleaned
+
+
+def _currency(value):
+    if not isinstance(value, str) or len(value.strip()) > 10:
+        raise ValueError("must be at most 10 characters")
+    return value.strip()
+
+
 def _prefix(value):
     if not isinstance(value, str) or not re.fullmatch(r"[A-Z]{1,5}", value):
         raise ValueError("must be 1-5 capital letters")
@@ -98,6 +113,8 @@ SCHEMA = {
     "max_employees": (MAX_EMPLOYEES, _number(1, MAX_EMPLOYEES), "Maximum employee count"),
     "employee_id_prefix": ("EM", _prefix, "Employee ID prefix"),
     "employee_id_start": (1, _number(1, MAX_EMPLOYEES), "Employee ID starting number"),
+    "employee_types": (["Technician", "Manager", "Cleaner"], _type_list, "Employee types"),
+    "currency": ("", _currency, "Currency"),
     # Display
     "clock_enabled": (True, _flag, "Clock display"),
     "theme": ("light", _choice("light", "dark"), "Screen theme"),

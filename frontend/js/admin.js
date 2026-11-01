@@ -8,6 +8,7 @@ const Admin = (() => {
     assignments: "M8 7h12M8 12h12M8 17h12M4 7h.01M4 12h.01M4 17h.01",
     attendance: "M9 11l2.5 2.5L16 9M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z",
     reports: "M5 20V10M12 20V4M19 20v-7",
+    overtime: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 8v8M8 12h8",
     users: "M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.500-7-10V6z",
     settings: "M4 7h10M18 7h2M4 17h2M10 17h10M16 9.500a2.500 2.500 0 1 0 0-5 2.500 2.500 0 0 0 0 5zM8 19.500a2.500 2.500 0 1 0 0-5 2.500 2.500 0 0 0 0 5z",
     backup: "M12 3v12M7 10l5 5 5-5M4 20h16",
@@ -20,6 +21,7 @@ const Admin = (() => {
     ["shifts", "Shifts", "shifts.view"],
     ["assignments", "Shift Assignments", "shifts.view"],
     ["attendance", "Attendance Records", "attendance.view"],
+    ["overtime", "Overtime", "overtime.manage"],
     ["reports", "Attendance Reports", "reports.view"],
     ["users", "User Access Management", "users.manage"],
     ["settings", "System Settings", "settings.manage"],
@@ -148,6 +150,10 @@ const Admin = (() => {
     return `<span class="pill ${map[status] || ""}">${esc(label)}</span>`;
   }
 
+  function fmtMoney(value) {
+    return Number(value || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
   function renderCell(row, col) {
     if (col.render) return col.render(row);
     const v = row[col.key];
@@ -155,6 +161,9 @@ const Admin = (() => {
       case "date": return esc(T.fmtDate(v));
       case "datetime": return esc(T.fmtDateTime(v)) || '<span class="muted">-</span>';
       case "duration": return esc(T.fmtDuration(v));
+      case "clock_date": return v ? esc(T.fmtDate(T.toLocalInput(v).slice(0, 10))) : '<span class="muted">-</span>';
+      case "clock_time": return v ? esc(T.fmtClock(new Date(v))) : '<span class="muted">-</span>';
+      case "money": return esc(fmtMoney(v));
       case "status": return statusPill(v);
       default: return esc(v);
     }
@@ -469,5 +478,5 @@ const Admin = (() => {
     return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), ms); };
   }
 
-  return { start, call, can, toast, table, localLoad, queryString, modal, confirm, formModal, tabs, statusPill, download, fetchDownload, debounce, state, WEEKDAYS };
+  return { start, call, can, toast, table, localLoad, queryString, modal, confirm, formModal, tabs, statusPill, renderCell, fmtMoney, download, fetchDownload, debounce, state, WEEKDAYS };
 })();

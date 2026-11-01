@@ -5,12 +5,14 @@ Failure: {"success": false, "code": "SOME_CODE", "message": "Readable text"}
 """
 import re
 from datetime import date
+from decimal import Decimal, InvalidOperation
 
 from flask import jsonify, request
 
 TIME_RE = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 PHONE_RE = re.compile(r"^[0-9+()\-\s]{5,25}$")
+MAX_MONEY = 1_000_000_000
 
 
 class ApiError(Exception):
@@ -66,6 +68,26 @@ def get_int(data, key, label=None, minimum=0, maximum=100000, default=None):
         raise ApiError(f"{label} must be between {minimum} and {maximum}.",
                        code="VALIDATION_ERROR", field=key)
     return value
+
+
+def get_money(data, key, label, default=0):
+    """A money amount as a whole number of cents, so totals never pick up rounding errors."""
+    value = data.get(key)
+    if value in (None, ""):
+        return default
+    try:
+        if isinstance(value, bool):
+            raise InvalidOperation
+        amount = Decimal(str(value))
+        if not amount.is_finite():
+            raise InvalidOperation
+    except InvalidOperation:
+        raise ApiError(f"{label} must be a number.", code="VALIDATION_ERROR", field=key)
+    if amount < 0 or amount > MAX_MONEY:
+        raise ApiError(f"{label} must be between 0 and {MAX_MONEY:,}.", code="VALIDATION_ERROR", field=key)
+    if amount != amount.quantize(Decimal("0.01")):
+        raise ApiError(f"{label} can have at most 2 decimal places.", code="VALIDATION_ERROR", field=key)
+    return int(amount * 100)
 
 
 def check_date(value, label="Date"):

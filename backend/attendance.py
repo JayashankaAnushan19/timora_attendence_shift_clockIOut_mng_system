@@ -326,6 +326,7 @@ def clock():
 
 RECORD_SELECT = """
 SELECT a.*, e.employee_id AS employee_code, e.name AS employee_name, e.department, e.designation,
+       e.employee_type,
        s.name AS shift_name, s.code AS shift_code
 FROM attendance a
 JOIN employees e ON e.id = a.employee_pk
@@ -349,6 +350,7 @@ def record_row(r):
         "employee_name": r["employee_name"],
         "department": r["department"],
         "designation": r["designation"],
+        "employee_type": r["employee_type"],
         "shift_id": r["shift_id"],
         "shift_name": r["shift_name"] or "",
         "attendance_date": r["attendance_date"],
@@ -394,6 +396,9 @@ def record_filters(args):
     if args.get("department"):
         where.append("e.department = ?")
         params.append(args["department"])
+    if args.get("employee_type"):
+        where.append("e.employee_type = ?")
+        params.append(args["employee_type"])
     if args.get("shift"):
         where.append("a.shift_id = ?")
         params.append(args["shift"])
@@ -416,7 +421,7 @@ def build_roster(conn, start, end, settings, now, filters=None):
     tz = business_tz(settings)
     index = schedule.ScheduleIndex(conn, start, end)
     by_key = {}
-    record_args = {k: filters.get(k) for k in ("employee", "employees", "department", "q")}
+    record_args = {k: filters.get(k) for k in ("employee", "employees", "department", "employee_type", "q")}
     for rec in fetch_records(conn, {**record_args, "from": start, "to": end}):
         by_key.setdefault((rec["employee_id"], rec["attendance_date"]), []).append(rec)
 
@@ -430,6 +435,9 @@ def build_roster(conn, start, end, settings, now, filters=None):
     if filters.get("department"):
         where.append("department = ?")
         params.append(filters["department"])
+    if filters.get("employee_type"):
+        where.append("employee_type = ?")
+        params.append(filters["employee_type"])
     if filters.get("q"):
         pattern = "%" + like_escape(filters["q"]) + "%"
         where.append("(employee_id LIKE ? ESCAPE '\\' OR name LIKE ? ESCAPE '\\')")
@@ -466,6 +474,7 @@ def build_roster(conn, start, end, settings, now, filters=None):
                 "employee_name": emp["name"],
                 "department": emp["department"],
                 "designation": emp["designation"],
+                "employee_type": emp["employee_type"],
                 "shift_id": shift["id"] if shift else None,
                 "shift_name": shift["name"] if shift else "",
                 "attendance_date": day,

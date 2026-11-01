@@ -4,10 +4,10 @@ import json
 from flask import Blueprint, g, request
 
 from . import schedule, timeutil
-from .api import (EMAIL_RE, PHONE_RE, ApiError, get_date, get_enum, get_int, get_str, json_body,
-                  like_escape, ok, page_args)
+from .api import (EMAIL_RE, PHONE_RE, ApiError, get_date, get_enum, get_int, get_money, get_str,
+                  json_body, like_escape, ok, page_args)
 from .attendance import close_stale_sessions, record_row, RECORD_SELECT
-from .auth import require
+from .auth import current_admin, require
 from .database import audit, get_db, transaction
 from .settings import MAX_EMPLOYEES, business_tz, get_settings, set_setting
 from .shifts import assign_shift, require_active_shift
@@ -57,8 +57,28 @@ def next_employee_id(conn, settings):
     return code
 
 
-def _read_fields(data, today, existing=None):
+def employee_out(row):
+    """Employee as JSON. Pay figures are included only for those allowed to see them."""
+    employee = dict(row)
+    basic_cents = employee.pop("basic_salary_cents", 0)
+    rate_cents = employee.pop("ot_rate_cents", 0)
+    admin = current_admin()
+    if admin and "payroll.manage" in admin["permissions"]:
+        employee["basic_salary"] = basic_cents / 100
+        employee["ot_rate"] = rate_cents / 100
+    return employee
+
+
+def _guard_pay_fields(data):
+    if ("basic_salary" in data or "ot_rate" in data) and "payroll.manage" not in g.admin["permissions"]:
+        raise ApiError("You do not have permission to change pay details.", 403, "FORBIDDEN")
+
+
+def _read_fields(data, today, settings, existing=None):
     existing = dict(existing) if existing else {}
+    employee_type = get_str(data, "employee_type", "Employee type", max_len=40)
+    if employee_type and employee_type != existing.get("employee_type") and employee_type not in settings["employee_types"]:
+        raise ApiError("Choose an employee type from the list.", code="VALIDATION_ERROR", field="employee_type")
     email = get_str(data, "email", "Email", max_len=120)
     if email and not EMAIL_RE.match(email):
         raise ApiError("Email address is not valid.", code="VALIDATION_ERROR", field="email")
@@ -69,6 +89,7 @@ def _read_fields(data, today, existing=None):
         "name": get_str(data, "name", "Employee name", required=True, max_len=120),
         "department": get_str(data, "department", "Department", required=True, max_len=80),
         "designation": get_str(data, "designation", "Designation", required=True, max_len=80),
+        "employee_type": employee_type,
         "contact_number": phone,
         "email": email,
         "date_of_joining": get_date(data, "date_of_joining", "Date of joining",
@@ -80,7 +101,9 @@ def _read_fields(data, today, existing=None):
 def create_employee(conn, data, settings, actor_name):
     """Shared by the API and the demo-data command."""
     today = timeutil.local_date(timeutil.now_utc(), business_tz(settings)).isoformat()
-    fields = _read_fields(data, today)
+    fields = _read_fields(data, today, settings)
+    basic_cents = get_money(data, "basic_salary", "Basic salary")
+    rate_cents = get_money(data, "ot_rate", "OT pay rate")
     status = get_enum(data, "status", ("active", "inactive"), "Status", default="active")
     shift_id = get_int(data, "shift_id", "Shift", 1, 10**9) if data.get("shift_id") else None
     with transaction(conn):
@@ -89,10 +112,12 @@ def create_employee(conn, data, settings, actor_name):
         code = next_employee_id(conn, settings)
         stamp = timeutil.to_iso(timeutil.now_utc())
         cursor = conn.execute(
-            "INSERT INTO employees(employee_id, name, department, designation, contact_number, email, "
+            "INSERT INTO employees(employee_id, name, department, designation, employee_type, "
+            "basic_salary_cents, ot_rate_cents, contact_number, email, "
             "date_of_joining, status, deactivated_on, notes, created_at, updated_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (code, fields["name"], fields["department"], fields["designation"], fields["contact_number"],
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (code, fields["name"], fields["department"], fields["designation"], fields["employee_type"],
+             basic_cents, rate_cents, fields["contact_number"],
              fields["email"], fields["date_of_joining"], status,
              today if status == "inactive" else None, fields["notes"], stamp, stamp),
         )
@@ -122,10 +147,13 @@ def list_employees():
     if request.args.get("status"):
         where.append("e.status = ?")
         params.append(request.args["status"])
+    if request.args.get("employee_type"):
+        where.append("e.employee_type = ?")
+        params.append(request.args["employee_type"])
     clause = " WHERE " + " AND ".join(where) if where else ""
 
     sorts = {"employee_id": "e.employee_id", "name": "e.name COLLATE NOCASE", "department": "e.department",
-             "designation": "e.designation", "status": "e.status", "date_of_joining": "e.date_of_joining"}
+             "designation": "e.designation", "employee_type": "e.employee_type", "status": "e.status", "date_of_joining": "e.date_of_joining"}
     order = sorts.get(request.args.get("sort"), "e.employee_id")
     direction = "DESC" if request.args.get("dir") == "desc" else "ASC"
 
@@ -142,7 +170,7 @@ def list_employees():
         f"FROM employees e{clause} ORDER BY {order} {direction} LIMIT ? OFFSET ?",
         [today, today, today, today] + params + [per_page, (page - 1) * per_page],
     ).fetchall()
-    return ok(items=[dict(r) for r in rows], total=total, page=page, per_page=per_page,
+    return ok(items=[employee_out(r) for r in rows], total=total, page=page, per_page=per_page,
               capacity=capacity(conn, settings))
 
 
@@ -151,7 +179,9 @@ def list_employees():
 def add_employee():
     conn = get_db()
     settings = get_settings(conn)
-    code = create_employee(conn, json_body(), settings, g.admin["username"])
+    data = json_body()
+    _guard_pay_fields(data)
+    code = create_employee(conn, data, settings, g.admin["username"])
     settings = get_settings(conn)
     return ok(201, employee_id=code, capacity=capacity(conn, settings),
               message=f"Employee {code} created.")
@@ -186,6 +216,10 @@ def employee_detail(code):
         "COALESCE(SUM(overtime_seconds > 0), 0) AS overtime_count "
         "FROM attendance WHERE employee_pk = ?", (employee["id"],),
     ).fetchone()
+    added_minutes = conn.execute(
+        "SELECT COALESCE(SUM(minutes), 0) FROM overtime_entries WHERE employee_pk = ? AND status = 'active'",
+        (employee["id"],),
+    ).fetchone()[0]
     history = conn.execute(
         RECORD_SELECT + " WHERE a.employee_pk = ? ORDER BY a.attendance_date DESC, a.id DESC LIMIT 100",
         (employee["id"],),
@@ -196,11 +230,11 @@ def employee_detail(code):
         "ORDER BY sa.effective_from DESC, sa.id DESC", (employee["id"],),
     ).fetchall()
     return ok(
-        employee=dict(employee),
+        employee=employee_out(employee),
         current_shift=dict(current_shift) if current_shift else None,
         current_status={"status": state["status"], "label": state["status_label"],
                         "indicator": state["indicator"], "message": state["message"]},
-        summary=dict(summary),
+        summary={**dict(summary), "added_overtime_seconds": added_minutes * 60},
         attendance=[record_row(r) for r in history],
         assignments=[dict(a) for a in assignments],
     )
@@ -210,20 +244,30 @@ def employee_detail(code):
 @require("employees.manage")
 def update_employee(code):
     data = json_body()
+    _guard_pay_fields(data)
     conn = get_db()
     settings = get_settings(conn)
     today = timeutil.local_date(timeutil.now_utc(), business_tz(settings)).isoformat()
     with transaction(conn):
         before = _find(conn, code)
-        fields = _read_fields(data, today, before)
+        fields = _read_fields(data, today, settings, before)
+        basic_cents = get_money(data, "basic_salary", "Basic salary", default=before["basic_salary_cents"])
+        rate_cents = get_money(data, "ot_rate", "OT pay rate", default=before["ot_rate_cents"])
         conn.execute(
-            "UPDATE employees SET name = ?, department = ?, designation = ?, contact_number = ?, "
+            "UPDATE employees SET name = ?, department = ?, designation = ?, employee_type = ?, "
+            "basic_salary_cents = ?, ot_rate_cents = ?, contact_number = ?, "
             "email = ?, date_of_joining = ?, notes = ?, updated_at = ? WHERE id = ?",
-            (fields["name"], fields["department"], fields["designation"], fields["contact_number"],
+            (fields["name"], fields["department"], fields["designation"], fields["employee_type"],
+             basic_cents, rate_cents, fields["contact_number"],
              fields["email"], fields["date_of_joining"], fields["notes"],
              timeutil.to_iso(timeutil.now_utc()), before["id"]),
         )
         changes = {k: {"from": before[k], "to": v} for k, v in fields.items() if before[k] != v}
+        # The audit log notes that pay changed, without keeping the amounts in it.
+        if basic_cents != before["basic_salary_cents"]:
+            changes["basic_salary"] = "changed"
+        if rate_cents != before["ot_rate_cents"]:
+            changes["ot_rate"] = "changed"
 
         # Choosing a different shift here takes effect today; history is untouched.
         if "shift_id" in data:

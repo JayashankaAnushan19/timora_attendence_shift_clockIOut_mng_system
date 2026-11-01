@@ -17,6 +17,7 @@ It runs on your own computer or local network. It needs no cloud service, and al
 - [Use from other computers on the network](#use-from-other-computers-on-the-network)
 - [Sample data](#sample-data)
 - [How attendance rules work](#how-attendance-rules-work)
+- [Overtime and pay](#overtime-and-pay)
 - [Roles and permissions](#roles-and-permissions)
 - [Reports and Excel export](#reports-and-excel-export)
 - [Backup and restore](#backup-and-restore)
@@ -33,7 +34,9 @@ It runs on your own computer or local network. It needs no cloud service, and al
 - **Shift assignments:** individual or bulk, with effective dates and full history
 - **Attendance tracking:** late arrival, early departure, overtime, half day and missing clock-outs
 - **Corrections with a permanent trail:** every change records who, when, the old value, the new value and the reason
-- **Reports:** nine report types with filters, sorting and pagination, exportable as Excel, CSV or JSON, or printed to PDF
+- **Employee types:** Technician, Manager and Cleaner by default, and you can change the list
+- **Pay details and overtime:** basic salary and OT rate per employee, with overtime hours added by managers
+- **Reports:** eleven report types with filters, sorting and pagination, exportable as Excel, CSV or JSON, or printed to PDF
 - **Export All Reports:** every report for the chosen dates and people, in one Excel workbook
 - **Access control:** Super Admin, Admin, Attendance Manager and Viewer roles, enforced by the server
 - **Backup and restore:** database backups, data exports and an automatic safety copy before every restore
@@ -101,10 +104,20 @@ Log in to the admin panel, then:
 
 1. **Set your timezone.** In **System Settings**, set **Business Timezone**. It starts as UTC, and all clock times and shift rules follow it, so this comes first.
 2. **Enter your company details.** Set the company name and, if you like, upload a logo.
-3. **Review the shift.** Timora starts with one **Default Shift**, from 07:00 AM to 07:00 AM the next day, every day. Employees can clock in at any time, and each attendance day starts at 7 AM. Under **Shifts**, edit it or create your own.
+3. **Review the shifts.** Under **Shifts**, edit these or create your own:
+
+   | Shift | Starts | Ends | Days |
+   |---|---|---|---|
+   | Default Shift | Day 1, 08:00 AM | Day 2, 08:00 AM | Every day |
+   | Midnight Shift | Day 1, 12:00 AM | Day 2, 12:00 AM | Every day |
+   | Manager Shift | Day 1, 08:00 AM | Day 1, 05:00 PM | Monday to Friday |
+
+   On the Default and Midnight shifts, employees can clock in at any time. Each attendance day starts at 8 AM on the Default Shift and at midnight on the Midnight Shift.
+
+   When creating a shift, choose **Day 1** as the end day if it finishes the same day, or **Day 2** if it finishes the next day. Timora tells you if the times do not match the day you chose. A shift can last up to 24 hours.
 4. **Add holidays.** On the **Shifts** page, open the **Holidays & Non-Working Days** tab.
-5. **Add employees.** Under **Employees**, add each person and choose their shift. IDs are generated automatically.
-6. **Add other administrators, if needed.** Use **User Access Management**.
+5. **Add employees.** Under **Employees**, add each person with their type, shift, basic salary and OT pay rate per hour. IDs are generated automatically. To change the types or show a currency, use **Employee Settings** in **System Settings**.
+6. **Add other administrators, if needed.** Use **User Access Management**. Anyone who adds overtime needs their own login with the **Manager** role or higher.
 
 ## Daily use
 
@@ -213,26 +226,42 @@ The examples use a 09:00 AM - 06:00 PM shift with a 10-minute grace period:
 - **Clock-in window:** opens before the shift by the early allowance (default 60 minutes) and closes at the shift end.
 - **Breaks:** the shift's break is deducted from worked time when the employee worked at least half of the scheduled shift.
 - **Flexible shifts:** never flagged late or early, and overtime is based on hours worked.
-- **24-hour shifts:** setting the end time equal to the start time makes the shift a full 24-hour window. Marked flexible, as the Default Shift is, it shows Present once the employee clocks out, with no late, early, half-day or overtime flags. A clock-in at 03:00 AM counts towards the attendance day that started at 7 AM the day before.
+- **24-hour shifts:** a shift that ends on Day 2 at its start time is a full 24-hour window. Marked flexible, as the Default and Midnight shifts are, it shows Present once the employee clocks out, with no late, early, half-day or overtime flags. On the Default Shift, a clock-in at 03:00 AM counts towards the attendance day that started at 8 AM the day before.
 - **One status per record:** when several apply, the priority is Half Day, Late, Early Departure, Overtime, then Present. The durations are kept regardless, so reports count them all.
 - **Absent:** worked out from the schedule when a scheduled shift ends with no attendance.
 - **Past records:** each record keeps the shift times it was worked under, so editing a shift later never changes history.
 
 Most of these values can be changed per shift or in **System Settings**.
 
+## Overtime and pay
+
+**Add overtime:** on the **Overtime** page, choose **Add Overtime**, enter the date, hours and reason, and choose selected employees or all active employees. To undo an entry, cancel it with a reason. Entries are never deleted.
+
+**Who can do what:** the permissions are tied to the role on a person's login, not to their employee type. Marking someone as a Manager employee does not give them a login.
+
+**How pay is calculated:**
+
+- OT pay is added hours multiplied by the employee's OT rate per hour.
+- Each entry keeps the rate in force when it was added, so changing a rate later does not change earlier pay. Set the rate before adding overtime.
+- **Only hours added on the Overtime page count towards pay.** Overtime worked out from clock-out times appears in the **Overtime Report** but is not paid automatically, so nothing is paid twice or without a manager's approval.
+- Timora reports OT pay. It does not run payroll, and the basic salary is stored for reference.
+
 ## Roles and permissions
 
-| Access | Super Admin | Admin | Attendance Manager | Viewer |
-|---|---|---|---|---|
-| Dashboard | Yes | Yes | Yes | Yes |
-| Reports and exports | Yes | Yes | Yes | Yes |
-| View and correct attendance, record leave | Yes | Yes | Yes | No |
-| Manage employees | Yes | Yes | No | No |
-| Manage shifts and assignments | Yes | Yes | No | No |
-| Manage administrators and roles | Yes | No | No | No |
-| System settings | Yes | No | No | No |
-| Backup and restore | Yes | No | No | No |
-| Audit log | Yes | No | No | No |
+| Access | Super Admin | Admin | Manager | Attendance Manager | Viewer |
+|---|---|---|---|---|---|
+| Dashboard | Yes | Yes | Yes | Yes | Yes |
+| Reports and exports (without pay figures) | Yes | Yes | Yes | Yes | Yes |
+| View attendance | Yes | Yes | Yes | Yes | No |
+| Correct attendance, record leave | Yes | Yes | No | Yes | No |
+| Add and cancel overtime | Yes | Yes | Yes | No | No |
+| View and edit salary and OT rates, pay reports | Yes | Yes | No | No | No |
+| Manage employees | Yes | Yes | No | No | No |
+| Manage shifts and assignments | Yes | Yes | No | No | No |
+| Manage administrators and roles | Yes | No | No | No | No |
+| System settings | Yes | No | No | No | No |
+| Backup and restore | Yes | No | No | No | No |
+| Audit log | Yes | No | No | No | No |
 
 Super Admins can change what each other role can do under **User Access Management > Roles & Permissions**. Super Admin itself always has full access, and at least one active Super Admin must remain.
 
@@ -243,11 +272,11 @@ On **Attendance Reports**, use **Excel**, **CSV**, **JSON** or **Print / PDF** t
 To get everything at once, choose **Export All Reports**:
 
 1. Choose a date range: today, yesterday, this or last week, this or last month, or custom dates.
-2. Optionally narrow it to selected people, a department or a shift.
-3. Choose which reports to include. All nine are ticked by default.
+2. Optionally narrow it to selected people, an employee type, a department or a shift.
+3. Choose which reports to include. All are ticked by default, and pay reports appear only for people allowed to see pay.
 4. Choose **Build & Download**.
 
-The Excel workbook has an **Overview** sheet showing the filters used, then one sheet per report. Dates and durations are real Excel values, so they can be sorted, filtered and added up. You can also download the reports as a ZIP of CSV files or as JSON.
+The Excel workbook has an **Overview** sheet showing the filters used, then one sheet per report. Clock-in and clock-out each have their own date and time columns, which matters when a shift runs past midnight. Dates and durations are real Excel values, so they can be sorted, filtered and added up. You can also download the reports as a ZIP of CSV files or as JSON.
 
 ## Backup and restore
 
@@ -294,6 +323,7 @@ If startup still fails, the details may be in `logs/timora-error.log`.
 │   ├── attendance.py     Clocking, records, corrections, leave
 │   ├── employees.py      Employee records and ID generation
 │   ├── shifts.py         Shifts, assignments, holidays
+│   ├── overtime.py       Added overtime
 │   ├── dashboard.py      Dashboard data
 │   ├── reports.py        Reports and exports
 │   ├── settings.py       System settings

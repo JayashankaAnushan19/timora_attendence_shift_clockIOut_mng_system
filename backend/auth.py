@@ -203,6 +203,7 @@ def me():
             "default_grace_minutes": settings["default_grace_minutes"],
             "default_early_clock_in_minutes": settings["default_early_clock_in_minutes"],
             "default_late_clock_out_minutes": settings["default_late_clock_out_minutes"],
+            "currency": settings["currency"],
         },
     )
 

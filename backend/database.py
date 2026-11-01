@@ -13,7 +13,7 @@ from werkzeug.security import generate_password_hash
 
 from . import timeutil
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 DEFAULT_ADMIN_USERNAME = "admin"
 DEFAULT_ADMIN_PASSWORD = "admin@123"
@@ -31,6 +31,8 @@ ALL_PERMISSIONS = [
     "settings.manage",
     "backup.manage",
     "audit.view",
+    "overtime.manage",
+    "payroll.manage",
 ]
 
 SUPER_ADMIN = "Super Admin"
@@ -39,7 +41,9 @@ DEFAULT_ROLES = [
     (SUPER_ADMIN, "Full system access.", ALL_PERMISSIONS),
     ("Admin", "Manage employees, shifts and attendance; generate reports.",
      ["dashboard.view", "employees.view", "employees.manage", "shifts.view", "shifts.manage",
-      "attendance.view", "attendance.manage", "reports.view"]),
+      "attendance.view", "attendance.manage", "reports.view", "overtime.manage", "payroll.manage"]),
+    ("Manager", "Add overtime for employees; view attendance and reports.",
+     ["dashboard.view", "attendance.view", "reports.view", "overtime.manage"]),
     ("Attendance Manager", "View and correct attendance; generate reports.",
      ["dashboard.view", "attendance.view", "attendance.manage", "reports.view"]),
     ("Viewer", "Read-only dashboard and reports.", ["dashboard.view", "reports.view"]),
@@ -78,6 +82,9 @@ CREATE TABLE IF NOT EXISTS employees (
     name            TEXT NOT NULL,
     department      TEXT NOT NULL DEFAULT '',
     designation     TEXT NOT NULL DEFAULT '',
+    employee_type   TEXT NOT NULL DEFAULT '',
+    basic_salary_cents INTEGER NOT NULL DEFAULT 0,
+    ot_rate_cents   INTEGER NOT NULL DEFAULT 0,
     contact_number  TEXT NOT NULL DEFAULT '',
     email           TEXT NOT NULL DEFAULT '',
     date_of_joining TEXT NOT NULL,
@@ -90,6 +97,7 @@ CREATE TABLE IF NOT EXISTS employees (
 CREATE INDEX IF NOT EXISTS ix_employees_name ON employees(name COLLATE NOCASE);
 CREATE INDEX IF NOT EXISTS ix_employees_department ON employees(department);
 CREATE INDEX IF NOT EXISTS ix_employees_status ON employees(status);
+CREATE INDEX IF NOT EXISTS ix_employees_type ON employees(employee_type);
 
 CREATE TABLE IF NOT EXISTS shifts (
     id                     INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -173,6 +181,24 @@ CREATE TABLE IF NOT EXISTS attendance_adjustments (
 );
 CREATE INDEX IF NOT EXISTS ix_adjustments_attendance ON attendance_adjustments(attendance_id);
 
+-- Overtime added by hand. rate_cents keeps the pay rate in force when it was added.
+CREATE TABLE IF NOT EXISTS overtime_entries (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    employee_pk   INTEGER NOT NULL REFERENCES employees(id) ON DELETE RESTRICT,
+    work_date     TEXT NOT NULL,
+    minutes       INTEGER NOT NULL CHECK (minutes > 0),
+    rate_cents    INTEGER NOT NULL DEFAULT 0,
+    reason        TEXT NOT NULL,
+    status        TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'cancelled')),
+    added_by      TEXT NOT NULL,
+    created_at    TEXT NOT NULL,
+    cancelled_by  TEXT,
+    cancelled_at  TEXT,
+    cancel_reason TEXT
+);
+CREATE INDEX IF NOT EXISTS ix_overtime_employee_date ON overtime_entries(employee_pk, work_date);
+CREATE INDEX IF NOT EXISTS ix_overtime_date ON overtime_entries(work_date);
+
 CREATE TABLE IF NOT EXISTS holidays (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     date       TEXT NOT NULL UNIQUE,
@@ -227,6 +253,9 @@ BEGIN SELECT RAISE(ABORT, 'Employees cannot be deleted; deactivate them instead.
 
 CREATE TRIGGER IF NOT EXISTS tr_attendance_no_delete BEFORE DELETE ON attendance
 BEGIN SELECT RAISE(ABORT, 'Attendance records cannot be deleted.'); END;
+
+CREATE TRIGGER IF NOT EXISTS tr_overtime_no_delete BEFORE DELETE ON overtime_entries
+BEGIN SELECT RAISE(ABORT, 'Overtime entries cannot be deleted; cancel them instead.'); END;
 
 CREATE TRIGGER IF NOT EXISTS tr_adjustments_no_update BEFORE UPDATE ON attendance_adjustments
 BEGIN SELECT RAISE(ABORT, 'Attendance adjustments are permanent.'); END;
@@ -290,11 +319,37 @@ def init_db(path):
     conn = connect(path)
     try:
         conn.execute("PRAGMA journal_mode = WAL")
+        previous_version = conn.execute("PRAGMA user_version").fetchone()[0]
+        _add_missing_columns(conn)
         conn.executescript(SCHEMA)
         conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         _seed(conn)
+        if previous_version == 1:
+            _grant_admin_pay_permissions(conn)
     finally:
         conn.close()
+
+
+def _add_missing_columns(conn):
+    """Databases and backups from earlier versions gain the newer employee columns."""
+    existing = {row["name"] for row in conn.execute("PRAGMA table_info(employees)")}
+    if not existing:
+        return
+    for column, definition in (
+        ("employee_type", "TEXT NOT NULL DEFAULT ''"),
+        ("basic_salary_cents", "INTEGER NOT NULL DEFAULT 0"),
+        ("ot_rate_cents", "INTEGER NOT NULL DEFAULT 0"),
+    ):
+        if column not in existing:
+            conn.execute(f"ALTER TABLE employees ADD COLUMN {column} {definition}")
+
+
+def _grant_admin_pay_permissions(conn):
+    row = conn.execute("SELECT permissions FROM roles WHERE name = 'Admin'").fetchone()
+    if row:
+        permissions = set(json.loads(row["permissions"])) | {"overtime.manage", "payroll.manage"}
+        conn.execute("UPDATE roles SET permissions = ? WHERE name = 'Admin'",
+                     (json.dumps(sorted(permissions)),))
 
 
 def _seed(conn):
@@ -321,12 +376,23 @@ def _seed(conn):
             )
 
         if conn.execute("SELECT COUNT(*) FROM shifts").fetchone()[0] == 0:
-            # A 24-hour window: clock in any time, every day; each day starts at 7 AM.
+            # A 24-hour window: clock in any time, every day; each day starts at 8 AM.
             conn.execute(
                 "INSERT INTO shifts(name, code, start_time, end_time, working_days, break_minutes, "
                 "early_clock_in_minutes, is_flexible, created_at, updated_at) "
-                "VALUES ('Default Shift', ?, '07:00', '07:00', '[0,1,2,3,4,5,6]', 0, 0, 1, ?, ?)",
+                "VALUES ('Default Shift', ?, '08:00', '08:00', '[0,1,2,3,4,5,6]', 0, 0, 1, ?, ?)",
                 (DEFAULT_SHIFT_CODE, now, now),
+            )
+            conn.execute(
+                "INSERT INTO shifts(name, code, start_time, end_time, created_at, updated_at) "
+                "VALUES ('Manager Shift', 'MANAGER', '08:00', '17:00', ?, ?)",
+                (now, now),
+            )
+            conn.execute(
+                "INSERT INTO shifts(name, code, start_time, end_time, working_days, break_minutes, "
+                "early_clock_in_minutes, is_flexible, created_at, updated_at) "
+                "VALUES ('Midnight Shift', 'MIDNIGHT', '00:00', '00:00', '[0,1,2,3,4,5,6]', 0, 0, 1, ?, ?)",
+                (now, now),
             )
 
 

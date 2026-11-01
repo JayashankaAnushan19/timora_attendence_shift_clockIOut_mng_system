@@ -472,7 +472,7 @@ def test_exports(report_data, admin):
     assert csv_response.status_code == 200 and "text/csv" in csv_response.content_type
     text = csv_response.data.decode("utf-8-sig")
     assert text.splitlines()[0].startswith("Date,Employee ID,Employee") and "Alice" in text
-    assert "2026-10-26 09:30:00" in text
+    assert "2026-10-26,09:30:00" in text
     json_response = admin.get(f"/api/admin/reports/late?{RANGE}&format=json")
     assert json_response.json["rows"][0]["Late"] == "0:30"
     assert "attachment" in json_response.headers["Content-Disposition"]

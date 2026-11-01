@@ -16,6 +16,23 @@ bp = Blueprint("shifts", __name__)
 CODE_RE = re.compile(r"^[A-Z0-9_\-]{1,20}$")
 
 
+def _check_end_day(end_day, start, end):
+    """The form says which day a shift ends on; make sure the times agree with it."""
+    if end_day in (None, ""):
+        return
+    if str(end_day) not in ("1", "2"):
+        raise ApiError("End day must be Day 1 or Day 2.", code="VALIDATION_ERROR", field="end_day")
+    if str(end_day) == "1" and end <= start:
+        raise ApiError("A shift ending on Day 1 must end after its start time. "
+                       "If it finishes the next day, choose Day 2 as the end day.",
+                       code="VALIDATION_ERROR", field="end_time")
+    if str(end_day) == "2" and end > start:
+        raise ApiError("A shift cannot be longer than 24 hours. On Day 2, the end time must be "
+                       "the same as or earlier than the start time. If it finishes the same day, "
+                       "choose Day 1 as the end day.",
+                       code="VALIDATION_ERROR", field="end_time")
+
+
 def _shift_fields(data, settings):
     code = get_str(data, "code", "Shift code", required=True, max_len=20).upper()
     if not CODE_RE.match(code):
@@ -23,6 +40,7 @@ def _shift_fields(data, settings):
                        code="VALIDATION_ERROR", field="code")
     start = get_time(data, "start_time", "Start time")
     end = get_time(data, "end_time", "End time")
+    _check_end_day(data.get("end_day"), start, end)
     days = data.get("working_days", settings["default_working_days"])
     if (not isinstance(days, list) or not days
             or not all(isinstance(d, int) and not isinstance(d, bool) and 0 <= d <= 6 for d in days)):

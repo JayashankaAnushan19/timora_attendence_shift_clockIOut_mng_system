@@ -16,6 +16,7 @@ Admin.start("reports", "Attendance Reports", async (root) => {
       <div class="custom" hidden><label for="to">To</label><input id="to" type="date" value="${today}"></div>
       <div><label for="emp">Employee</label><select id="emp"><option value="">All</option>
         ${lookups.employees.map((e) => `<option value="${esc(e.employee_id)}">${esc(e.employee_id)} - ${esc(e.name)}</option>`).join("")}</select></div>
+      <div><label for="type">Type</label><select id="type"><option value="">All</option>${lookups.employee_types.map((t) => `<option>${esc(t)}</option>`).join("")}</select></div>
       <div><label for="dept">Department</label><select id="dept"><option value="">All</option>${lookups.departments.map((d) => `<option>${esc(d)}</option>`).join("")}</select></div>
       <div><label for="shift">Shift</label><select id="shift"><option value="">All</option>${lookups.shifts.map((s) => `<option value="${esc(s.id)}">${esc(s.name)}</option>`).join("")}</select></div>
       <div class="btn-group">
@@ -40,6 +41,7 @@ Admin.start("reports", "Attendance Reports", async (root) => {
       from: preset === "custom" ? $("from").value : "",
       to: preset === "custom" ? $("to").value : "",
       employee: $("emp").value,
+      employee_type: $("type").value,
       department: $("dept").value,
       shift: $("shift").value,
     };
@@ -48,7 +50,7 @@ Admin.start("reports", "Attendance Reports", async (root) => {
   function toColumns(columns) {
     return columns.map((c) => ({
       key: c.key, label: c.label, kind: c.kind === "text" || c.kind === "int" ? undefined : c.kind,
-      sortable: true, num: c.kind === "duration" || c.kind === "int",
+      sortable: true, num: ["duration", "int", "money"].includes(c.kind),
     }));
   }
 
@@ -72,17 +74,10 @@ Admin.start("reports", "Attendance Reports", async (root) => {
       const s = table.state;
       const d = await Admin.call("GET", `/api/admin/reports/${$("report").value}?${Admin.queryString({ ...filters(), sort: s.sort, dir: s.dir, all: 1 })}`);
       const cols = toColumns(d.columns);
-      const cell = (row, c) => {
-        const v = row[c.key];
-        if (c.kind === "date") return esc(T.fmtDate(v));
-        if (c.kind === "datetime") return esc(T.fmtDateTime(v));
-        if (c.kind === "duration") return esc(T.fmtDuration(v));
-        return esc(v);
-      };
       $("printTitle").textContent = d.title;
       $("printRange").textContent = `${T.fmtDate(d.start)} to ${T.fmtDate(d.end)} · ${T.display.timezone} · ${Admin.state.display.company_name}`;
       $("printTbl").innerHTML = `<table><thead><tr>${cols.map((c) => `<th class="${c.num ? "num" : ""}">${esc(c.label)}</th>`).join("")}</tr></thead>
-        <tbody>${d.items.map((r) => `<tr>${cols.map((c) => `<td class="${c.num ? "num" : ""}">${cell(r, c)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+        <tbody>${d.items.map((r) => `<tr>${cols.map((c) => `<td class="${c.num ? "num" : ""}">${Admin.renderCell(r, c)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
       $("tbl").classList.add("no-print");
       window.print();
     } catch (err) {
@@ -90,7 +85,7 @@ Admin.start("reports", "Attendance Reports", async (root) => {
     }
   }
 
-  ["report", "emp", "dept", "shift", "from", "to"].forEach((id) => $(id).addEventListener("change", () => {
+  ["report", "emp", "type", "dept", "shift", "from", "to"].forEach((id) => $(id).addEventListener("change", () => {
     if (id === "report") table.state.sort = null;
     table.reload();
   }));
@@ -113,6 +108,7 @@ Admin.start("reports", "Attendance Reports", async (root) => {
         { name: "format", label: "File type", type: "select", options: [["xlsx", "Excel (.xlsx)"], ["csv", "CSV files (.zip)"], ["json", "JSON"]] },
         { name: "from", label: "From", type: "date" },
         { name: "to", label: "To", type: "date" },
+        { name: "employee_type", label: "Employee type", type: "select", options: [["", "All types"], ...lookups.employee_types.map((t) => [t, t])] },
         { name: "department", label: "Department", type: "select", options: [["", "All departments"], ...lookups.departments.map((d) => [d, d])] },
         { name: "shift", label: "Shift", type: "select", options: [["", "All shifts"], ...lookups.shifts.map((s) => [s.id, s.name])] },
         { name: "employees", label: "Selected people (leave all unticked for everyone)", type: "checklist", full: true,
@@ -126,6 +122,7 @@ Admin.start("reports", "Attendance Reports", async (root) => {
           preset: v.preset,
           from: v.preset === "custom" ? v.from : "",
           to: v.preset === "custom" ? v.to : "",
+          employee_type: v.employee_type,
           department: v.department,
           shift: v.shift,
           employees: v.employees.join(","),

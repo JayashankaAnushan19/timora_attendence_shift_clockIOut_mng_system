@@ -31,6 +31,8 @@ Admin.start("settings", "System Settings", async (root) => {
       ["max_employees", "Maximum Employee Count", "number", "Cannot exceed 999."],
       ["employee_id_prefix", "Employee ID Prefix", "text", "Applies to new employees only."],
       ["employee_id_start", "Employee ID Starting Number", "number", "IDs already issued are never reused."],
+      ["employee_types", "Employee Types", "list", "Separate with commas, such as Technician, Manager, Cleaner."],
+      ["currency", "Currency", "text", "Shown beside pay figures, such as LKR. Optional."],
     ]],
     ["Display Settings", [
       ["clock_enabled", "Show the large clock on the attendance screen", "checkbox"],
@@ -62,7 +64,7 @@ Admin.start("settings", "System Settings", async (root) => {
       const list = options.map(([val, text]) => `<option value="${esc(val)}" ${val === v ? "selected" : ""}>${esc(text)}</option>`).join("");
       return `<div class="field"><label for="${id}">${esc(label)}</label><select id="${id}" data-key="${key}" data-type="text">${list}</select>${help}</div>`;
     }
-    return `<div class="field"><label for="${id}">${esc(label)}</label><input id="${id}" data-key="${key}" data-type="${type}" type="${type}" value="${esc(v)}">${help}</div>`;
+    return `<div class="field"><label for="${id}">${esc(label)}</label><input id="${id}" data-key="${key}" data-type="${type}" type="${type === "list" ? "text" : type}" value="${esc(type === "list" ? v.join(", ") : v)}">${help}</div>`;
   }
 
   root.innerHTML = `
@@ -120,6 +122,7 @@ Admin.start("settings", "System Settings", async (root) => {
       const { key, type } = el.dataset;
       if (type === "checkbox") body[key] = el.checked;
       else if (type === "weekdays") body[key] = [...el.querySelectorAll("input:checked")].map((i) => +i.dataset.day);
+      else if (type === "list") body[key] = el.value.split(",").map((t) => t.trim()).filter(Boolean);
       else if (type === "number") body[key] = el.value === "" ? null : Number(el.value);
       else body[key] = el.value;
     });

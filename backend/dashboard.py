@@ -69,12 +69,13 @@ def lookups():
     """Names for filter dropdowns. Any permitted role can see these labels."""
     conn = get_db()
     permissions = current_admin()["permissions"]
-    if not permissions & {"employees.view", "shifts.view", "attendance.view", "reports.view"}:
-        return ok(departments=[], shifts=[], employees=[])
+    if not permissions & {"employees.view", "shifts.view", "attendance.view", "reports.view", "overtime.manage"}:
+        return ok(departments=[], shifts=[], employees=[], employee_types=[])
     departments = [r[0] for r in conn.execute(
         "SELECT DISTINCT department FROM employees WHERE department <> '' ORDER BY department")]
     shifts = [dict(r) for r in conn.execute(
         "SELECT id, name, code, status FROM shifts ORDER BY name")]
     employees = [dict(r) for r in conn.execute(
         "SELECT employee_id, name, status FROM employees ORDER BY name COLLATE NOCASE")]
-    return ok(departments=departments, shifts=shifts, employees=employees)
+    return ok(departments=departments, shifts=shifts, employees=employees,
+              employee_types=get_settings(conn)["employee_types"])

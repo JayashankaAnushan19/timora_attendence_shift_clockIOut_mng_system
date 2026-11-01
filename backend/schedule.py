@@ -241,5 +241,6 @@ def shift_summary(shift, settings):
         parsed = datetime.strptime(hhmm, "%H:%M")
         return parsed.strftime("%H:%M" if settings["time_format"] == "24" else "%I:%M %p")
 
+    next_day = " (next day)" if shift["end_time"] <= shift["start_time"] else ""
     return {"name": shift["name"], "code": shift["code"],
-            "start": fmt(shift["start_time"]), "end": fmt(shift["end_time"])}
+            "start": fmt(shift["start_time"]), "end": fmt(shift["end_time"]) + next_day}

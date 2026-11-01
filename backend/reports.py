@@ -16,19 +16,21 @@ from openpyxl.utils import get_column_letter
 from . import timeutil
 from .api import ApiError, check_date, ok, page_args, paginate_list
 from .attendance import build_roster, check_range, close_stale_sessions
-from .auth import require
+from .auth import current_admin, require
 from .database import get_db
+from .overtime import fetch_entries
 from .settings import business_tz, get_settings
 
 bp = Blueprint("reports", __name__)
 
 ID = ("employee_id", "Employee ID", "text")
 NAME = ("employee_name", "Employee", "text")
+TYPE = ("employee_type", "Type", "text")
 DEPT = ("department", "Department", "text")
 SHIFT = ("shift_name", "Shift", "text")
 DATE = ("attendance_date", "Date", "date")
-IN = ("clock_in", "Clock In", "datetime")
-OUT = ("clock_out", "Clock Out", "datetime")
+IN = [("clock_in", "Clock In Date", "clock_date"), ("clock_in", "Clock In Time", "clock_time")]
+OUT = [("clock_out", "Clock Out Date", "clock_date"), ("clock_out", "Clock Out Time", "clock_time")]
 WORKED = ("working_seconds", "Worked", "duration")
 LATE = ("late_seconds", "Late", "duration")
 EARLY = ("early_departure_seconds", "Early Departure", "duration")
@@ -51,7 +53,12 @@ TOTALS = [
 ]
 
 XLSX_MIMETYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-EXCEL_FORMATS = {"datetime": "yyyy-mm-dd hh:mm", "date": "yyyy-mm-dd", "duration": "[h]:mm"}
+EXCEL_FORMATS = {"datetime": "yyyy-mm-dd hh:mm", "date": "yyyy-mm-dd", "clock_date": "yyyy-mm-dd",
+                 "clock_time": "hh:mm:ss", "duration": "[h]:mm", "money": "#,##0.00"}
+# Only people who may see pay figures can run these.
+PAYROLL_REPORTS = {"overtime_pay"}
+# Built from added overtime entries rather than the attendance roster.
+ENTRY_REPORTS = {"added_overtime", "overtime_pay"}
 HEADER_FONT = Font(bold=True, color="FFFFFF")
 HEADER_FILL = PatternFill("solid", fgColor="172554")
 EMPLOYEE_CODE_RE = re.compile(r"^[A-Za-z]{1,5}\d{3,4}$")
@@ -60,10 +67,10 @@ EMPLOYEE_CODE_RE = re.compile(r"^[A-Za-z]{1,5}\d{3,4}$")
 def _empty_summary(row):
     return {
         "employee_id": row["employee_id"], "employee_name": row["employee_name"],
-        "department": row["department"], "scheduled_days": 0, "days_present": 0, "late_count": 0,
-        "early_count": 0, "absent_days": 0, "leave_days": 0, "incomplete_count": 0,
-        "working_seconds": 0, "break_seconds": 0, "late_seconds": 0, "early_departure_seconds": 0,
-        "overtime_seconds": 0,
+        "employee_type": row["employee_type"], "department": row["department"], "scheduled_days": 0,
+        "days_present": 0, "late_count": 0, "early_count": 0, "absent_days": 0, "leave_days": 0,
+        "incomplete_count": 0, "working_seconds": 0, "break_seconds": 0, "late_seconds": 0,
+        "early_departure_seconds": 0, "overtime_seconds": 0,
     }
 
 
@@ -138,20 +145,55 @@ def _absent(roster):
     return [r for r in roster if r["status"] == "Absent"]
 
 
+def _added_overtime(entries):
+    return entries
+
+
+def _overtime_pay(entries):
+    totals = OrderedDict()
+    for entry in entries:
+        total = totals.setdefault(entry["employee_id"], {
+            "employee_id": entry["employee_id"], "employee_name": entry["employee_name"],
+            "employee_type": entry["employee_type"], "department": entry["department"],
+            "basic_salary": entry["basic_salary"], "ot_rate": entry["current_ot_rate"],
+            "entries": 0, "added_seconds": 0, "ot_pay": 0,
+        })
+        total["entries"] += 1
+        total["added_seconds"] += entry["added_seconds"]
+        total["ot_pay"] = round(total["ot_pay"] + entry["ot_pay"], 2)
+    return list(totals.values())
+
+
 REPORTS = {
-    "summary": ("Employee Attendance Summary", [ID, NAME, DEPT] + COUNTS + TOTALS, _summary),
-    "daily": ("Daily Attendance Report", [DATE, ID, NAME, DEPT, SHIFT, IN, OUT, WORKED, LATE, EARLY, OT, STATUS], _daily),
-    "monthly": ("Monthly Attendance Report", [("month", "Month", "text"), ID, NAME, DEPT] + COUNTS + TOTALS, _monthly),
-    "late": ("Late Arrival Report", [DATE, ID, NAME, DEPT, SHIFT, IN, LATE, STATUS], _late),
-    "early": ("Early Departure Report", [DATE, ID, NAME, DEPT, SHIFT, OUT, EARLY, STATUS], _early),
-    "overtime": ("Overtime Report", [DATE, ID, NAME, DEPT, SHIFT, OUT, OT, WORKED], _overtime),
-    "missing_clockout": ("Missing Clock-Out Report", [DATE, ID, NAME, DEPT, SHIFT, IN, STATUS], _missing_clock_out),
-    "absent": ("Absent Employee Report", [DATE, ID, NAME, DEPT, SHIFT], _absent),
+    "summary": ("Employee Attendance Summary", [ID, NAME, TYPE, DEPT] + COUNTS + TOTALS, _summary),
+    "daily": ("Daily Attendance Report", [DATE, ID, NAME, TYPE, DEPT, SHIFT, *IN, *OUT, WORKED, LATE, EARLY, OT, STATUS], _daily),
+    "monthly": ("Monthly Attendance Report", [("month", "Month", "text"), ID, NAME, TYPE, DEPT] + COUNTS + TOTALS, _monthly),
+    "late": ("Late Arrival Report", [DATE, ID, NAME, TYPE, DEPT, SHIFT, *IN, *OUT, LATE, STATUS], _late),
+    "early": ("Early Departure Report", [DATE, ID, NAME, TYPE, DEPT, SHIFT, *IN, *OUT, EARLY, STATUS], _early),
+    "overtime": ("Overtime Report", [DATE, ID, NAME, TYPE, DEPT, SHIFT, *IN, *OUT, OT, WORKED], _overtime),
+    "missing_clockout": ("Missing Clock-Out Report", [DATE, ID, NAME, TYPE, DEPT, SHIFT, *IN, *OUT, STATUS], _missing_clock_out),
+    "absent": ("Absent Employee Report", [DATE, ID, NAME, TYPE, DEPT, SHIFT], _absent),
     "hours": ("Total Working Hours", [
-        ID, NAME, DEPT, ("days_present", "Days Worked", "int"), WORKED,
+        ID, NAME, TYPE, DEPT, ("days_present", "Days Worked", "int"), WORKED,
         ("break_seconds", "Breaks", "duration"), ("average_seconds", "Average / Day", "duration"), OT,
     ], _hours),
+    "added_overtime": ("Added Overtime Report", [
+        ("work_date", "Date", "date"), ID, NAME, TYPE, DEPT, ("added_seconds", "Added OT", "duration"),
+        ("reason", "Reason", "text"), ("added_by", "Added By", "text"), ("created_at", "Added On", "datetime"),
+    ], _added_overtime),
+    "overtime_pay": ("Overtime Pay Report", [
+        ID, NAME, TYPE, DEPT, ("basic_salary", "Basic Salary", "money"), ("ot_rate", "Current OT Rate / Hour", "money"),
+        ("entries", "OT Entries", "int"), ("added_seconds", "Added OT", "duration"), ("ot_pay", "OT Pay", "money"),
+    ], _overtime_pay),
 }
+
+
+def _can_run(report):
+    return report not in PAYROLL_REPORTS or "payroll.manage" in current_admin()["permissions"]
+
+
+def _report_rows(report, roster, entries):
+    return REPORTS[report][2](entries if report in ENTRY_REPORTS else roster)
 
 
 def resolve_range(args, today):
@@ -184,6 +226,7 @@ def _read_filters(args):
         "employee": args.get("employee", "").strip(),
         "employees": [c.strip() for c in args.get("employees", "").split(",") if c.strip()],
         "department": args.get("department", "").strip(),
+        "employee_type": args.get("employee_type", "").strip(),
         "shift": args.get("shift", "").strip(),
     }
     if filters["shift"] and not filters["shift"].isdigit():
@@ -199,7 +242,8 @@ def _load_roster(conn, args, settings, now):
     check_range(start, end)
     filters = _read_filters(args)
     close_stale_sessions(conn, settings, now)
-    return build_roster(conn, start, end, settings, now, filters), start, end, filters
+    entries = fetch_entries(conn, start, end, filters)
+    return build_roster(conn, start, end, settings, now, filters), entries, start, end, filters
 
 
 def _sort(rows, columns, args):
@@ -217,6 +261,12 @@ def _plain_value(value, kind, tz):
         return ""
     if kind == "datetime":
         return timeutil.format_local_datetime(value, tz)
+    if kind == "clock_date":
+        return timeutil.format_local_datetime(value, tz)[:10]
+    if kind == "clock_time":
+        return timeutil.format_local_datetime(value, tz)[11:]
+    if kind == "money":
+        return f"{value:.2f}"
     if kind == "duration":
         minutes = int(value) // 60
         return f"{minutes // 60}:{minutes % 60:02d}"
@@ -245,6 +295,10 @@ def _excel_value(value, kind, tz):
         return None
     if kind == "datetime":
         return timeutil.parse_iso(value).astimezone(tz).replace(tzinfo=None)
+    if kind == "clock_date":
+        return timeutil.parse_iso(value).astimezone(tz).date()
+    if kind == "clock_time":
+        return timeutil.parse_iso(value).astimezone(tz).time()
     if kind == "date":
         return date.fromisoformat(value)
     if kind == "duration":
@@ -276,7 +330,7 @@ def _write_report_sheet(sheet, columns, rows, tz):
             _write_cell(sheet, row_number, index, value, EXCEL_FORMATS.get(kind))
             if kind == "datetime":
                 widths[index - 1] = max(widths[index - 1], 18)
-            elif kind == "date":
+            elif kind in ("date", "clock_date", "clock_time"):
                 widths[index - 1] = max(widths[index - 1], 12)
             elif isinstance(value, str):
                 widths[index - 1] = max(widths[index - 1], min(len(value) + 2, 40))
@@ -329,12 +383,14 @@ def _plain_rows(columns, rows, tz):
 def run_report(report):
     if report not in REPORTS:
         raise ApiError("Unknown report.", 404, "NOT_FOUND")
+    if not _can_run(report):
+        raise ApiError("You do not have permission to view pay reports.", 403, "FORBIDDEN")
     conn = get_db()
     settings = get_settings(conn)
     args = request.args
-    roster, start, end, _filters = _load_roster(conn, args, settings, timeutil.now_utc())
-    title, columns, builder = REPORTS[report]
-    rows = _sort(builder(roster), columns, args)
+    roster, entries, start, end, _filters = _load_roster(conn, args, settings, timeutil.now_utc())
+    title, columns, _builder = REPORTS[report]
+    rows = _sort(_report_rows(report, roster, entries), columns, args)
     tz = business_tz(settings)
     export = args.get("format")
     name = f"timora-{report}-{start}-to-{end}"
@@ -361,7 +417,7 @@ def run_report(report):
 @bp.get("/api/admin/reports")
 @require("reports.view")
 def report_list():
-    return ok(items=[{"key": key, "title": spec[0]} for key, spec in REPORTS.items()])
+    return ok(items=[{"key": key, "title": spec[0]} for key, spec in REPORTS.items() if _can_run(key)])
 
 
 @bp.get("/api/admin/reports-export")
@@ -371,18 +427,20 @@ def export_all():
     conn = get_db()
     settings = get_settings(conn)
     args = request.args
-    keys = [k for k in args.get("reports", "").split(",") if k] or list(REPORTS)
+    keys = [k for k in args.get("reports", "").split(",") if k] or [k for k in REPORTS if _can_run(k)]
     unknown = [k for k in keys if k not in REPORTS]
     if unknown:
         raise ApiError(f"Unknown report: {unknown[0]}", code="VALIDATION_ERROR")
+    if not all(_can_run(k) for k in keys):
+        raise ApiError("You do not have permission to view pay reports.", 403, "FORBIDDEN")
     export = args.get("format", "xlsx")
     if export not in ("xlsx", "csv", "json"):
         raise ApiError("Choose Excel, CSV or JSON.", code="VALIDATION_ERROR")
 
     now = timeutil.now_utc()
-    roster, start, end, filters = _load_roster(conn, args, settings, now)
+    roster, entries, start, end, filters = _load_roster(conn, args, settings, now)
     tz = business_tz(settings)
-    reports = [(REPORTS[k][0], REPORTS[k][1], REPORTS[k][2](roster)) for k in keys]
+    reports = [(REPORTS[k][0], REPORTS[k][1], _report_rows(k, roster, entries)) for k in keys]
     name = f"timora-all-reports-{start}-to-{end}"
 
     if export == "csv":
@@ -405,6 +463,7 @@ def export_all():
         ("Period", f"{start} to {end}"),
         ("Timezone", settings["timezone"]),
         ("Employees", ", ".join(filters["employees"]) or filters["employee"] or "All"),
+        ("Employee type", filters["employee_type"] or "All"),
         ("Department", filters["department"] or "All"),
         ("Shift", shift_name),
         ("Generated", timeutil.format_local_datetime(timeutil.to_iso(now), tz)),

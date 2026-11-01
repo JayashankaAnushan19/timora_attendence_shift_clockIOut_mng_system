@@ -3,6 +3,11 @@ Admin.start("shifts", "Shifts", async (root) => {
   const canManage = Admin.can("shifts.manage");
   const display = Admin.state.display;
 
+  function hoursLabel(s) {
+    const endDay = s.end_time <= s.start_time ? 2 : 1;
+    return `Day 1 ${T.fmtShiftTime(s.start_time)} to Day ${endDay} ${T.fmtShiftTime(s.end_time)}`;
+  }
+
   function daysLabel(days) {
     return Admin.WEEKDAYS.filter((_, i) => days.includes(i)).join(", ");
   }
@@ -16,7 +21,9 @@ Admin.start("shifts", "Shifts", async (root) => {
       Admin.formModal({
         title: shift ? `Edit ${shift.name}` : "Create Shift",
         wide: true,
-        values: shift || {
+        values: shift ? { ...shift, start_day: "1", end_day: shift.end_time <= shift.start_time ? "2" : "1" } : {
+          start_day: "1",
+          end_day: "1",
           working_days: display.default_working_days,
           grace_minutes: display.default_grace_minutes,
           break_minutes: 60,
@@ -26,8 +33,10 @@ Admin.start("shifts", "Shifts", async (root) => {
         fields: [
           { name: "name", label: "Shift Name", required: true },
           { name: "code", label: "Shift Code", required: true, help: "Letters, numbers, - and _ only." },
-          { name: "start_time", label: "Shift Start Time", type: "time", required: true },
-          { name: "end_time", label: "Shift End Time", type: "time", required: true, help: "Before the start time means overnight. The same time as the start means a full 24 hours." },
+          { name: "start_day", label: "Start Day", type: "select", options: [["1", "Day 1"]], disabled: true },
+          { name: "start_time", label: "Start Time", type: "time", required: true },
+          { name: "end_day", label: "End Day", type: "select", options: [["1", "Day 1 (same day)"], ["2", "Day 2 (next day)"]] },
+          { name: "end_time", label: "End Time", type: "time", required: true },
           { name: "working_days", label: "Applicable Working Days", type: "weekdays", full: true },
           { name: "grace_minutes", label: "Grace Period (minutes)", type: "number", min: 0, max: 240 },
           { name: "break_minutes", label: "Break Duration (minutes)", type: "number", min: 0, max: 480 },
@@ -52,7 +61,7 @@ Admin.start("shifts", "Shifts", async (root) => {
         title: s.name, wide: true, footer: false,
         body: `<dl class="dl">
             <dt>Code</dt><dd>${esc(s.code)}</dd>
-            <dt>Hours</dt><dd>${esc(T.fmtShiftTime(s.start_time))} – ${esc(T.fmtShiftTime(s.end_time))}${s.is_overnight ? '<span class="tag">Overnight</span>' : ""}${s.is_24h ? '<span class="tag">24 hours</span>' : ""}${s.is_flexible ? '<span class="tag">Flexible</span>' : ""}</dd>
+            <dt>Hours</dt><dd>${esc(hoursLabel(s))}${s.is_overnight ? '<span class="tag">Overnight</span>' : ""}${s.is_24h ? '<span class="tag">24 hours</span>' : ""}${s.is_flexible ? '<span class="tag">Flexible</span>' : ""}</dd>
             <dt>Working days</dt><dd>${esc(daysLabel(s.working_days))}</dd>
             <dt>Grace period</dt><dd>${esc(s.grace_minutes)} minutes</dd>
             <dt>Break</dt><dd>${esc(s.break_minutes)} minutes</dd>
@@ -93,7 +102,7 @@ Admin.start("shifts", "Shifts", async (root) => {
       columns: [
         { key: "name", label: "Name", render: (s) => `${esc(s.name)}${s.is_overnight ? '<span class="tag">Overnight</span>' : ""}${s.is_24h ? '<span class="tag">24 hours</span>' : ""}${s.is_flexible ? '<span class="tag">Flexible</span>' : ""}` },
         { key: "code", label: "Code" },
-        { key: "hours", label: "Hours", render: (s) => `${esc(T.fmtShiftTime(s.start_time))} – ${esc(T.fmtShiftTime(s.end_time))}` },
+        { key: "hours", label: "Hours", render: (s) => esc(hoursLabel(s)) },
         { key: "days", label: "Working Days", render: (s) => esc(daysLabel(s.working_days)) },
         { key: "grace_minutes", label: "Grace", render: (s) => `${esc(s.grace_minutes)}m`, num: true },
         { key: "assigned_count", label: "Employees", num: true },

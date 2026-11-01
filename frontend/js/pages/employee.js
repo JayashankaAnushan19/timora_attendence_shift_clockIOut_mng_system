@@ -6,6 +6,8 @@ Admin.start("employee", "Employee Details", async (root) => {
   const s = d.summary;
   const pill = { green: "pill-green", red: "pill-red", orange: "pill-orange", blue: "pill-blue" }[d.current_status.indicator] || "";
 
+  const currency = Admin.state.display.currency;
+  const moneyText = (value) => `${currency ? `${currency} ` : ""}${Admin.fmtMoney(value)}`;
   const row = (label, value) => `<dt>${esc(label)}</dt><dd>${value === "" || value == null ? '<span class="muted">-</span>' : esc(value)}</dd>`;
 
   root.innerHTML = `
@@ -22,12 +24,15 @@ Admin.start("employee", "Employee Details", async (root) => {
       <section class="panel"><div class="panel-head"><h2>${esc(e.name)}</h2>${Admin.statusPill(e.status)}</div>
         <div class="panel-body"><dl class="dl">
           ${row("Employee ID", e.employee_id)}
+          ${row("Employee Type", e.employee_type)}
           ${row("Department", e.department)}
           ${row("Designation", e.designation)}
           ${row("Contact Number", e.contact_number)}
           ${row("Email", e.email)}
           ${row("Date of Joining", T.fmtDate(e.date_of_joining))}
           ${row("Assigned Shift", d.current_shift ? d.current_shift.name : "")}
+          ${e.basic_salary !== undefined ? row("Basic Salary", moneyText(e.basic_salary)) + row("OT Pay Rate per Hour", moneyText(e.ot_rate)) : ""}
+          ${row("Added Overtime", T.fmtDuration(s.added_overtime_seconds))}
           <dt>Current Status</dt><dd><span class="pill ${pill}">${esc(d.current_status.label)}</span>
             <div class="muted">${esc(d.current_status.message)}</div></dd>
           ${row("Notes", e.notes)}

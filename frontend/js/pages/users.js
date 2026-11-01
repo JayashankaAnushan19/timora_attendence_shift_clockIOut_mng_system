@@ -14,6 +14,8 @@ Admin.start("users", "User Access Management", async (root) => {
     "settings.manage": "Manage system settings",
     "backup.manage": "Backup and restore",
     "audit.view": "View audit log",
+    "overtime.manage": "Add and cancel overtime",
+    "payroll.manage": "View and edit salary and OT rates",
   };
 
   function renderUsers(panel) {

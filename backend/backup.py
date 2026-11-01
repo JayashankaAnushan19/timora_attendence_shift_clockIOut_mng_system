@@ -14,6 +14,7 @@ from .attendance import fetch_records
 from .auth import require
 from .database import (REQUIRED_TABLES, SCHEMA_VERSION, SUPER_ADMIN, audit, close_db, connect, get_db,
                        init_db, transaction)
+from .employees import employee_out
 from .reports import REPORTS, attachment, rows_to_csv
 from .settings import business_tz, editable_settings, get_settings, set_setting
 
@@ -24,7 +25,8 @@ SQLITE_HEADER = b"SQLite format 3\x00"
 
 EMPLOYEE_COLUMNS = [
     ("employee_id", "Employee ID", "text"), ("name", "Name", "text"), ("department", "Department", "text"),
-    ("designation", "Designation", "text"), ("contact_number", "Contact Number", "text"),
+    ("designation", "Designation", "text"), ("employee_type", "Employee Type", "text"),
+    ("contact_number", "Contact Number", "text"),
     ("email", "Email", "text"), ("date_of_joining", "Date of Joining", "date"),
     ("status", "Status", "text"), ("notes", "Notes", "text"),
 ]
@@ -189,7 +191,7 @@ def restore_existing(name):
 def export_employees():
     conn = get_db()
     settings = get_settings(conn)
-    rows = [dict(r) for r in conn.execute("SELECT * FROM employees ORDER BY employee_id")]
+    rows = [employee_out(r) for r in conn.execute("SELECT * FROM employees ORDER BY employee_id")]
     if request.args.get("format") == "json":
         return attachment(json.dumps({"employees": rows}, indent=2), "timora-employees.json", "application/json")
     return attachment(rows_to_csv(EMPLOYEE_COLUMNS, rows, business_tz(settings)),

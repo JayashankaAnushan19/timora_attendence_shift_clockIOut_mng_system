@@ -12,18 +12,18 @@ from werkzeug.security import generate_password_hash
 from backend import database, timeutil
 from backend.config import load_config
 
-# name, department, designation, date of joining
+# name, department, designation, employee type, date of joining
 DEMO_EMPLOYEES = [
-    ("John Smith", "Operations", "Supervisor", "2025-03-10"),
-    ("Amara Perera", "Finance", "Accountant", "2025-05-19"),
-    ("Liam Chen", "Warehouse", "Picker", "2025-07-01"),
-    ("Sofia Garcia", "Security", "Guard", "2025-08-14"),
-    ("Noah Khan", "Sales", "Executive", "2025-09-02"),
-    ("Priya Nair", "Human Resources", "HR Officer", "2025-10-06"),
-    ("Daniel Fernando", "Operations", "Coordinator", "2025-11-17"),
-    ("Mei Tanaka", "Finance", "Analyst", "2026-01-12"),
-    ("Omar Hassan", "Warehouse", "Forklift Operator", "2026-02-23"),
-    ("Grace Mensah", "Customer Support", "Support Agent", "2026-04-06"),
+    ("John Smith", "Operations", "Supervisor", "Manager", "2025-03-10"),
+    ("Amara Perera", "Finance", "Accountant", "Manager", "2025-05-19"),
+    ("Liam Chen", "Warehouse", "Picker", "Technician", "2025-07-01"),
+    ("Sofia Garcia", "Security", "Guard", "Cleaner", "2025-08-14"),
+    ("Noah Khan", "Sales", "Executive", "Technician", "2025-09-02"),
+    ("Priya Nair", "Human Resources", "HR Officer", "Manager", "2025-10-06"),
+    ("Daniel Fernando", "Operations", "Coordinator", "Technician", "2025-11-17"),
+    ("Mei Tanaka", "Finance", "Analyst", "Technician", "2026-01-12"),
+    ("Omar Hassan", "Warehouse", "Forklift Operator", "Technician", "2026-02-23"),
+    ("Grace Mensah", "Customer Support", "Support Agent", "Cleaner", "2026-04-06"),
 ]
 
 
@@ -70,9 +70,9 @@ def cmd_seed_demo(cfg):
             sys.exit("Employees already exist, so demo data was not added.")
         settings = dict(get_settings(conn))
         shift = conn.execute("SELECT id FROM shifts WHERE code = ?", (database.DEFAULT_SHIFT_CODE,)).fetchone()
-        for number, (name, department, designation, joined) in enumerate(DEMO_EMPLOYEES, 1):
+        for number, (name, department, designation, employee_type, joined) in enumerate(DEMO_EMPLOYEES, 1):
             email = name.lower().replace(" ", ".") + "@example.com"
-            data = {"name": name, "department": department, "designation": designation,
+            data = {"name": name, "department": department, "designation": designation, "employee_type": employee_type,
                     "contact_number": f"+1 555 010 {number:04d}", "email": email,
                     "date_of_joining": joined, "shift_id": shift["id"] if shift else None,
                     "notes": "Demo employee"}
