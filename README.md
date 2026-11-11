@@ -6,8 +6,6 @@ Timora is a lightweight attendance and shift management system. Employees clock 
 
 It runs on your own computer or local network. It needs no cloud service, and all data stays in a local SQLite database.
 
-A one-page overview of the project is in [`docs/index.html`](docs/index.html).
-
 ## Contents
 
 - [Features](#features)
@@ -31,7 +29,6 @@ A one-page overview of the project is in [`docs/index.html`](docs/index.html).
 - [Critical Operations](#critical-operations)
 - [Troubleshooting](#troubleshooting)
 - [Project structure](#project-structure)
-- [Project page](#project-page)
 - [For developers](#for-developers)
 - [Security notes](#security-notes)
 
@@ -414,7 +411,6 @@ If startup still fails, the details may be in `logs/timora-error.log`.
 │   ├── backup.py         Backup, restore, data exports
 │   └── critical.py       Purge, full cleanup and reset
 ├── frontend/             HTML, CSS and JavaScript, with no build step
-├── docs/index.html       One-page project overview
 ├── config/
 │   ├── settings.json     Server address, port and file locations
 │   └── starter_data.json Employee added to a new installation
@@ -424,12 +420,6 @@ If startup still fails, the details may be in `logs/timora-error.log`.
 ```
 
 Business settings such as timezone and grace periods are stored in the database, so they are included in backups.
-
-## Project page
-
-[`docs/index.html`](docs/index.html) is a single page that introduces Timora: its features, how the attendance screen works, the roles, and how to get started. It needs no server, so you can open it directly in a browser.
-
-To publish it as a website, open the repository on GitHub, go to **Settings > Pages**, and under **Build and deployment** choose **Deploy from a branch**, branch `main` and folder `/docs`. GitHub shows the page's address once it is live. The page will be public, so this only makes sense for a public repository.
 
 ## For developers
 

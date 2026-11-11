@@ -1,0 +1,762 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Timora v1.0</title>
+  <meta name="description" content="About Timora v1.0: employee attendance, shifts, overtime and salary slips, running on your own computer.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' rx='12' fill='%23172554'/%3E%3Ccircle cx='24' cy='24' r='14.5' fill='none' stroke='%23fff' stroke-width='3'/%3E%3Cpath d='M24 15v9.5l6.5 4' fill='none' stroke='%2360A5FA' stroke-width='3.4' stroke-linecap='round'/%3E%3C/svg%3E">
+  <style>
+    :root {
+      --navy: #172554;
+      --blue: #2563eb;
+      --blue-soft: #dbeafe;
+      --green: #16a34a;
+      --green-soft: #dcfce7;
+      --red: #dc2626;
+      --red-soft: #fee2e2;
+      --orange: #f59e0b;
+      --orange-soft: #fef3c7;
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --surface-2: #f1f5f9;
+      --ink: #1e293b;
+      --muted: #64748b;
+      --line: #e2e8f0;
+      --code: #0f172a;
+      --radius: 14px;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg: #0b1220; --surface: #131c2e; --surface-2: #1b2638; --ink: #e2e8f0; --muted: #94a3b8;
+        --line: #2a3850; --blue-soft: #16294f; --green-soft: #14361f; --red-soft: #3f1a1a; --orange-soft: #3d2d0c; --code: #060b16;
+      }
+    }
+    :root[data-theme="dark"] {
+      --bg: #0b1220; --surface: #131c2e; --surface-2: #1b2638; --ink: #e2e8f0; --muted: #94a3b8;
+      --line: #2a3850; --blue-soft: #16294f; --green-soft: #14361f; --red-soft: #3f1a1a; --orange-soft: #3d2d0c; --code: #060b16;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: 76px; }
+    body {
+      margin: 0; background: var(--bg); color: var(--ink); line-height: 1.65; font-size: 16px;
+      font-family: "Segoe UI", Inter, -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+    a { color: var(--blue); }
+    h1, h2, h3 { line-height: 1.25; margin: 0; }
+    p { margin: 0 0 12px; }
+    code { font-family: Consolas, "Cascadia Mono", Menlo, monospace; font-size: .9em; padding: 1px 6px; border-radius: 5px; background: var(--surface-2); overflow-wrap: anywhere; }
+    pre {
+      margin: 0 0 14px; padding: 16px 18px; overflow-x: auto; border-radius: 12px; background: var(--code); color: #e2e8f0;
+      font-family: Consolas, "Cascadia Mono", Menlo, monospace; font-size: 14px; line-height: 1.7;
+    }
+    pre code { padding: 0; background: none; font-size: inherit; overflow-wrap: normal; }
+    pre .c { color: #64748b; }
+    kbd { font-family: inherit; font-size: .88em; padding: 1px 7px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 6px; background: var(--surface); }
+    .wrap { width: min(1180px, 100%); margin: 0 auto; padding: 0 16px; }
+
+    /* Top bar */
+    .top { position: sticky; top: 0; z-index: 10; background: var(--navy); color: #fff; }
+    .top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 60px; }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; }
+    .brand svg { width: 34px; height: 34px; flex: none; }
+    .top small { color: #bfdbfe; font-size: 14px; }
+
+    /* Hero */
+    .hero {
+      position: relative; overflow: hidden; color: #fff; padding: 64px 0 72px;
+      background: linear-gradient(130deg, var(--navy) 0%, #1e3a8a 60%, var(--blue) 140%);
+    }
+    .hero::before, .hero::after { content: ""; position: absolute; border-radius: 50%; pointer-events: none; }
+    .hero::before { width: 520px; height: 520px; right: -160px; top: -230px; background: rgba(255, 255, 255, .06); }
+    .hero::after { width: 300px; height: 300px; left: -120px; bottom: -180px; background: rgba(96, 165, 250, .12); }
+    .hero .wrap { position: relative; z-index: 1; display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: 48px; align-items: center; }
+    .badge { display: inline-block; padding: 4px 12px; border-radius: 999px; background: rgba(255, 255, 255, .12); color: #bfdbfe; font-size: 13px; font-weight: 600; }
+    .hero h1 { font-size: clamp(34px, 5vw, 54px); letter-spacing: -1px; margin: 16px 0 0; }
+    .hero h1 span { color: #93c5fd; }
+    .hero .lead { font-size: clamp(17px, 1.6vw, 19px); color: #dbeafe; margin: 18px 0 26px; max-width: 560px; }
+    .facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; max-width: 560px; }
+    .facts div { padding: 12px 14px; border-radius: 12px; background: rgba(255, 255, 255, .08); font-size: 13.5px; color: #bfdbfe; }
+    .facts b { display: block; color: #fff; font-size: 18px; }
+
+    .device { background: #f8fafc; color: #1e293b; border-radius: 18px; overflow: hidden; box-shadow: 0 30px 70px rgba(2, 6, 23, .45); }
+    .device-bar { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: var(--navy); color: #fff; font-size: 13px; font-weight: 700; }
+    .device-bar small { color: #bfdbfe; font-weight: 500; }
+    .device-body { padding: 24px 22px 22px; text-align: center; }
+    .device-clock { font-size: clamp(40px, 5vw, 56px); font-weight: 700; color: #172554; letter-spacing: -1px; font-variant-numeric: tabular-nums; line-height: 1; }
+    .device-clock span { font-size: .34em; color: #64748b; margin-left: 6px; }
+    .device-date { font-weight: 600; margin-top: 6px; }
+    .device-select { margin: 18px 0 12px; padding: 12px 14px; border: 2px solid #cbd5e1; border-radius: 10px; text-align: left; display: flex; justify-content: space-between; }
+    .device-card { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 14px; border: 1px solid #e2e8f0; border-radius: 10px; background: #fff; text-align: left; }
+    .device-card b { display: block; }
+    .device-card small { color: #64748b; }
+    .device-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+    .device-actions div { padding: 16px 6px; border-radius: 10px; font-weight: 700; letter-spacing: .4px; }
+    .device-actions .in { background: #16a34a; color: #fff; }
+    .device-actions .out { background: #e2e8f0; color: #64748b; }
+
+    /* Layout with contents sidebar */
+    .layout { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 40px; padding: 40px 16px 64px; }
+    .toc { position: sticky; top: 80px; align-self: start; max-height: calc(100vh - 100px); overflow-y: auto; font-size: 14px; }
+    .toc b { display: block; margin-bottom: 8px; color: var(--muted); font-size: 12px; letter-spacing: 1px; text-transform: uppercase; }
+    .toc ol { list-style: none; margin: 0; padding: 0; border-left: 2px solid var(--line); }
+    .toc a { display: block; padding: 5px 12px; margin-left: -2px; color: var(--muted); text-decoration: none; border-left: 2px solid transparent; }
+    .toc a:hover { color: var(--blue); border-left-color: var(--blue); }
+    .toc-mobile { display: none; margin-bottom: 24px; padding: 12px 16px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+    .toc-mobile summary { cursor: pointer; font-weight: 700; }
+    .toc-mobile ol { margin: 10px 0 0; padding-left: 22px; columns: 2; column-gap: 24px; font-size: 14.5px; }
+    .toc-mobile li { break-inside: avoid; margin-bottom: 4px; }
+
+    article section { padding: 34px 0; border-bottom: 1px solid var(--line); }
+    article section:first-child { padding-top: 0; }
+    article section:last-child { border-bottom: 0; }
+    .eyebrow { color: var(--blue); font-weight: 700; font-size: 12.5px; letter-spacing: 1.2px; text-transform: uppercase; }
+    article h2 { font-size: clamp(24px, 3vw, 30px); margin: 6px 0 14px; }
+    article h3 { font-size: 18px; margin: 22px 0 10px; }
+    .intro { color: var(--muted); font-size: 17px; max-width: 720px; }
+    article ul, article ol { padding-left: 22px; margin: 0 0 14px; }
+    article li { margin-bottom: 6px; }
+
+    .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+    .grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 20px; min-width: 0; }
+    .card h3 { font-size: 16.5px; margin: 12px 0 6px; }
+    .card p { margin: 0; color: var(--muted); font-size: 15px; }
+    .icon { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 11px; background: var(--blue-soft); color: var(--blue); }
+    .icon svg { width: 21px; height: 21px; }
+
+    .steps { list-style: none; padding: 0; margin: 0 0 14px; counter-reset: step; display: grid; gap: 12px; }
+    .grid > * { min-width: 0; }
+    .steps > li { min-width: 0; position: relative; padding: 14px 18px 14px 62px; margin: 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+    .steps > li::before {
+      counter-increment: step; content: counter(step); position: absolute; left: 16px; top: 14px;
+      display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 50%;
+      background: var(--navy); color: #fff; font-weight: 700; font-size: 14px;
+    }
+    .steps > li > b { display: block; }
+    .steps > li span { color: var(--muted); font-size: 15px; }
+    .steps pre { margin: 10px 0 2px; }
+
+    .table-wrap { overflow-x: auto; margin: 0 0 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+    table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+    th, td { padding: 10px 14px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); }
+    th { background: var(--surface-2); font-size: 13px; color: var(--muted); white-space: nowrap; }
+    tbody tr:last-child td { border-bottom: 0; }
+    td.nowrap, td:first-child { white-space: nowrap; }
+    .matrix td:not(:first-child), .matrix th:not(:first-child) { text-align: center; }
+    .yes, .no { display: inline-block; width: 26px; height: 26px; line-height: 26px; border-radius: 50%; font-weight: 700; font-size: 14px; }
+    .yes { background: var(--green-soft); color: var(--green); }
+    .no { background: var(--surface-2); color: var(--muted); }
+
+    .pill { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; white-space: nowrap; background: var(--surface-2); }
+    .pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+    .pill.blue { background: var(--blue-soft); } .pill.blue::before { background: var(--blue); }
+    .pill.green { background: var(--green-soft); } .pill.green::before { background: var(--green); }
+    .pill.red { background: var(--red-soft); } .pill.red::before { background: var(--red); }
+    .pill.orange { background: var(--orange-soft); } .pill.orange::before { background: var(--orange); }
+
+    .note { margin: 0 0 14px; padding: 14px 18px; border-radius: 12px; border-left: 4px solid var(--blue); background: var(--blue-soft); }
+    .note.warn { border-left-color: var(--orange); background: var(--orange-soft); }
+    .note.danger { border-left-color: var(--red); background: var(--red-soft); }
+    .note p:last-child, .note ul:last-child { margin-bottom: 0; }
+
+    .login-card { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 460px; margin: 0 0 14px; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--line); }
+    .login-card div { padding: 14px 18px; background: var(--surface); }
+    .login-card div + div { border-left: 1px solid var(--line); }
+    .login-card small { display: block; color: var(--muted); font-size: 12.5px; }
+    .login-card b { font-family: Consolas, "Cascadia Mono", Menlo, monospace; font-size: 18px; }
+
+    .formula { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 14px; font-weight: 600; }
+    .formula span { padding: 6px 12px; border-radius: 10px; background: var(--surface); border: 1px solid var(--line); }
+    .formula .total { background: var(--navy); color: #fff; border-color: var(--navy); }
+
+    footer { background: var(--navy); color: #94a3b8; padding: 28px 0; font-size: 14px; }
+    footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; }
+
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: minmax(0, 1fr); padding-top: 28px; }
+      .toc { display: none; }
+      .toc-mobile { display: block; }
+      .hero .wrap { grid-template-columns: minmax(0, 1fr); }
+      .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 600px) {
+      .grid, .grid.two, .facts { grid-template-columns: minmax(0, 1fr); }
+      .toc-mobile ol { columns: 1; }
+      .hero { padding: 44px 0 52px; }
+      .top small { display: none; }
+    }
+    @media print {
+      .top, .toc, .toc-mobile { display: none; }
+      .layout { display: block; }
+      .hero { padding: 24px 0; }
+      section { break-inside: avoid-page; }
+    }
+  </style>
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <div class="brand">
+        <svg viewBox="0 0 48 48" aria-hidden="true"><rect width="48" height="48" rx="12" fill="#fff" fill-opacity=".1"/><circle cx="24" cy="24" r="14.5" fill="none" stroke="#fff" stroke-width="3"/><path d="M24 15v9.5l6.5 4" fill="none" stroke="#60A5FA" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Timora v1.0
+      </div>
+      <small>Smart Employee Time Tracking</small>
+    </div>
+  </header>
+
+  <div class="hero">
+    <div class="wrap">
+      <div>
+        <span class="badge">Runs on your own computer · No cloud needed</span>
+        <h1>Smart Employee <span>Time Tracking</span></h1>
+        <p class="lead">Timora is a lightweight system for attendance, shifts, overtime and salary slips. Employees clock in and out on a simple screen, and administrators run everything else from one secure admin panel. All data stays in a local SQLite database.</p>
+        <div class="facts">
+          <div><b>1 click</b>to start on Windows</div>
+          <div><b>999</b>employees supported</div>
+          <div><b>5 roles</b>with server-side checks</div>
+        </div>
+      </div>
+      <div class="device" role="img" aria-label="Drawing of the Timora attendance screen: a large clock, an employee dropdown and Clock In and Clock Out buttons">
+        <div class="device-bar"><span>Timora v1.0</span><small>Saturday, 31 October 2026</small></div>
+        <div class="device-body">
+          <div class="device-clock">08:58:32<span>AM</span></div>
+          <div class="device-date">Saturday, 31 October 2026</div>
+          <div class="device-select"><span>John Smith (EM001)</span><span>&#9662;</span></div>
+          <div class="device-card"><div><b>John Smith</b><small>Employee ID: EM001</small></div><span class="pill blue">NOT CLOCKED IN</span></div>
+          <div class="device-actions"><div class="in">CLOCK IN</div><div class="out">CLOCK OUT</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap layout">
+    <nav class="toc" aria-label="Contents">
+      <b>Contents</b>
+      <ol>
+        <li><a href="#features">Features</a></li>
+        <li><a href="#requirements">Requirements</a></li>
+        <li><a href="#quick-start">Quick start on Windows</a></li>
+        <li><a href="#updating">Updating</a></li>
+        <li><a href="#login">Default login</a></li>
+        <li><a href="#setup">First-time setup</a></li>
+        <li><a href="#menu">Admin menu</a></li>
+        <li><a href="#daily">Daily use</a></li>
+        <li><a href="#manual">Manual install</a></li>
+        <li><a href="#network">Network use</a></li>
+        <li><a href="#rules">Attendance rules</a></li>
+        <li><a href="#shifts">Shifts and starter data</a></li>
+        <li><a href="#overtime">Overtime and pay</a></li>
+        <li><a href="#salary">Salary slips</a></li>
+        <li><a href="#reports">Reports and Excel</a></li>
+        <li><a href="#roles">Roles and permissions</a></li>
+        <li><a href="#backup">Backup and restore</a></li>
+        <li><a href="#critical">Critical Operations</a></li>
+        <li><a href="#troubleshooting">Troubleshooting</a></li>
+        <li><a href="#structure">Project structure</a></li>
+        <li><a href="#developers">For developers</a></li>
+        <li><a href="#security">Security notes</a></li>
+      </ol>
+    </nav>
+
+    <article>
+      <details class="toc-mobile">
+        <summary>Contents</summary>
+        <ol>
+          <li><a href="#features">Features</a></li>
+          <li><a href="#requirements">Requirements</a></li>
+          <li><a href="#quick-start">Quick start</a></li>
+          <li><a href="#updating">Updating</a></li>
+          <li><a href="#login">Default login</a></li>
+          <li><a href="#setup">First-time setup</a></li>
+          <li><a href="#menu">Admin menu</a></li>
+          <li><a href="#daily">Daily use</a></li>
+          <li><a href="#manual">Manual install</a></li>
+          <li><a href="#network">Network use</a></li>
+          <li><a href="#rules">Attendance rules</a></li>
+          <li><a href="#shifts">Shifts</a></li>
+          <li><a href="#overtime">Overtime and pay</a></li>
+          <li><a href="#salary">Salary slips</a></li>
+          <li><a href="#reports">Reports and Excel</a></li>
+          <li><a href="#roles">Roles</a></li>
+          <li><a href="#backup">Backup and restore</a></li>
+          <li><a href="#critical">Critical Operations</a></li>
+          <li><a href="#troubleshooting">Troubleshooting</a></li>
+          <li><a href="#structure">Project structure</a></li>
+          <li><a href="#developers">For developers</a></li>
+          <li><a href="#security">Security notes</a></li>
+        </ol>
+      </details>
+
+      <section id="features">
+        <div class="eyebrow">Overview</div>
+        <h2>Features</h2>
+        <p class="intro">From the moment someone clocks in to the salary slip at the end of the month.</p>
+        <div class="grid">
+          <div class="card"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+            <h3>Attendance screen</h3><p>A large live clock, a searchable employee dropdown, and one clear action: Clock In or Clock Out.</p></div>
+          <div class="card"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg></span>
+            <h3>Reliable clocking</h3><p>Server time only, no duplicate clock-ins or clock-outs, and safe retries after a network failure.</p></div>
+          <div class="card"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></span>
+            <h3>Shifts</h3><p>Day, overnight, flexible and 24-hour shifts, grace periods, working days, holidays and leave.</p></div>
+          <div class="card"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 7h12M8 12h12M8 17h12M4 7h.01M4 12h.01M4 17h.01"/></svg></span>
+            <h3>Shift assignments</h3><p>For one person or many at once, with effective dates and full history.</p></div>
+          <div class="card"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l2.5 2.5L16 9"/><rect x="4" y="4" width="16" height="16" rx="2"/></svg></span>
+            <h3>Attendance tracking</h3><p>Late arrival, early departure, overtime, half day and missing clock-outs, worked out automatically.</p></div>
+          <div class="card"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13 7l4 4"/></svg></span>
+            <h3>Corrections with a trail</h3><p>Every change records who, when, the old value, the new value and the reason.</p></div>
+          <div class="card"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg></span>
+            <h3>Overtime and pay</h3><p>Employee types, basic salary and OT rates, with overtime hours added by managers.</p></div>
+          <div class="card"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18M7 15h4"/></svg></span>
+            <h3>Salary slips</h3><p>Monthly salary with allowances, deductions and overtime, and a printable A5 slip.</p></div>
+          <div class="card"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 20V10M12 20V4M19 20v-7"/></svg></span>
+            <h3>Reports and Excel</h3><p>Eleven reports with filters, exported as Excel, CSV, JSON or PDF, or all at once in one workbook.</p></div>
+          <div class="card"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2"/><path d="M14 10h4M14 14h4M6 16c.8-1.5 1.8-2 3-2s2.2.5 3 2"/></svg></span>
+            <h3>Company card</h3><p>Your company profile, shown when anyone clicks the company name on the attendance screen.</p></div>
+          <div class="card"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M3 20v-1a5 5 0 0 1 5-5h2a5 5 0 0 1 5 5v1M16 4a3.5 3.5 0 0 1 0 7M21 20v-1a5 5 0 0 0-3-4.6"/></svg></span>
+            <h3>Access control</h3><p>Super Admin, Admin, Manager, Attendance Manager and Viewer, enforced by the server.</p></div>
+          <div class="card"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M4 20h16"/></svg></span>
+            <h3>Backups and safety</h3><p>One-click backup and restore, plus Super Admin tools to purge data or reset to defaults.</p></div>
+        </div>
+        <p style="margin-top:16px">Supports up to 999 employees, with IDs from <code>EM001</code> to <code>EM999</code>. IDs are permanent and never reused.</p>
+      </section>
+
+      <section id="requirements">
+        <div class="eyebrow">Before you start</div>
+        <h2>Requirements</h2>
+        <div class="grid two">
+          <div class="card"><h3>Computer</h3><p>Windows 10 or 11 for the one-click launcher. macOS and Linux work with the manual install.</p></div>
+          <div class="card"><h3>Python</h3><p>3.10 or newer. On Windows, the launcher installs it if it is missing.</p></div>
+          <div class="card"><h3>Browser</h3><p>A current version of Edge, Chrome or Firefox.</p></div>
+          <div class="card"><h3>Internet</h3><p>Needed the first time only, to download Python and the required components. After that, Timora runs offline.</p></div>
+        </div>
+      </section>
+
+      <section id="quick-start">
+        <div class="eyebrow">Install</div>
+        <h2>Quick start on Windows</h2>
+        <ol class="steps">
+          <li><b>Get the code</b>
+            <span>With Git, or on the GitHub page choose <b>Code &gt; Download ZIP</b>, then right-click the file and choose <b>Extract All</b>.</span>
+<pre><code>git clone https://github.com/JayashankaAnushan19/timora_attendence_shift_clockIOut_mng_system.git
+cd timora_attendence_shift_clockIOut_mng_system</code></pre></li>
+          <li><b>Double-click <code>start-timora.bat</code></b>
+            <span>That is the only step. The first start can take a few minutes, and later starts take a few seconds.</span></li>
+          <li><b>Keep the window open</b>
+            <span>Timora runs while that window is open. Closing it stops Timora.</span></li>
+        </ol>
+        <h3>What the launcher does</h3>
+        <ol>
+          <li>Looks for Python 3.10 or newer. If it is missing, it installs Python 3.12 using <code>winget</code>, or from python.org if <code>winget</code> is unavailable.</li>
+          <li>Creates a private environment in a <code>.venv</code> folder.</li>
+          <li>Installs the required components. This needs internet the first time.</li>
+          <li>Creates the database on first run.</li>
+          <li>Starts Timora and opens it in your browser.</li>
+        </ol>
+        <p>If something goes wrong, the window explains the problem and how to fix it.</p>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Page</th><th>Address</th></tr></thead>
+          <tbody>
+            <tr><td>Attendance screen</td><td><code>http://127.0.0.1:5000/</code></td></tr>
+            <tr><td>Admin panel</td><td><code>http://127.0.0.1:5000/admin</code></td></tr>
+          </tbody>
+        </table></div>
+      </section>
+
+      <section id="updating">
+        <div class="eyebrow">Install</div>
+        <h2>Updating to a new version</h2>
+        <ol class="steps">
+          <li><b>Close the Timora window</b><span>If it is open.</span></li>
+          <li><b>Get the latest code</b>
+            <span>In the Timora folder, run the command below. If you use a ZIP instead, extract the new ZIP over your existing folder.</span>
+<pre><code>git pull</code></pre></li>
+          <li><b>Double-click <code>start-timora.bat</code></b><span>It installs any new components the update needs.</span></li>
+        </ol>
+        <div class="note">
+          <p><b>Your data is kept.</b> The database is upgraded automatically the next time Timora starts. Make a backup under <b>Backup &amp; Restore</b> before updating, just in case.</p>
+          <p>Updates do not change data you already have. Your existing shifts and settings stay as they are, and the starter employee is only added to a brand-new installation.</p>
+        </div>
+        <p>A ZIP contains no database or backup files, so yours stay as they are. It does contain <code>config/settings.json</code>, so if you changed the host or port there, change it again afterwards.</p>
+      </section>
+
+      <section id="login">
+        <div class="eyebrow">Admin panel</div>
+        <h2>Default login</h2>
+        <div class="login-card">
+          <div><small>Username</small><b>admin</b></div>
+          <div><small>Password</small><b>admin@123</b></div>
+        </div>
+        <div class="note warn"><p>You must choose a new password the first time you log in. This default is public, so never skip this step.</p></div>
+        <p><b>Forgot the password?</b> Open a terminal in the Timora folder and run:</p>
+<pre><code>.venv\Scripts\python.exe manage.py reset-password admin</code></pre>
+      </section>
+
+      <section id="setup">
+        <div class="eyebrow">Admin panel</div>
+        <h2>First-time setup</h2>
+        <p>Log in to the admin panel, then:</p>
+        <ol class="steps">
+          <li><b>Set your timezone</b><span>In <b>System Settings</b>, set <b>Business Timezone</b>. It starts as UTC, and all clock times and shift rules follow it, so this comes first.</span></li>
+          <li><b>Enter your company details</b><span>Set the company name and logo, then fill in <b>Company Profile</b>. These appear on salary slips and on the company card, which anyone can open from the attendance screen without logging in.</span></li>
+          <li><b>Review the shifts</b><span>Under <b>Shifts</b>, edit the starter shifts below or create your own.</span></li>
+          <li><b>Add holidays</b><span>On the <b>Shifts</b> page, open the <b>Holidays &amp; Non-Working Days</b> tab.</span></li>
+          <li><b>Add employees</b><span>Under <b>Employees</b>, add each person with their type, shift, basic salary and OT pay rate per hour. IDs are generated automatically. To change the types or show a currency, use <b>Employee Settings</b> in <b>System Settings</b>.</span></li>
+          <li><b>Add other administrators, if needed</b><span>Use <b>User Access Management</b>. Anyone who adds overtime needs their own login with the <b>Manager</b> role or higher.</span></li>
+        </ol>
+        <h3>Starter shifts</h3>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Shift</th><th>Starts</th><th>Ends</th><th>Days</th></tr></thead>
+          <tbody>
+            <tr><td>Default Shift</td><td>Day 1, 08:00 AM</td><td>Day 2, 08:00 AM</td><td>Every day</td></tr>
+            <tr><td>Midnight Shift</td><td>Day 1, 12:00 AM</td><td>Day 2, 12:00 AM</td><td>Every day</td></tr>
+            <tr><td>Manager Shift</td><td>Day 1, 08:00 AM</td><td>Day 1, 05:00 PM</td><td>Monday to Friday</td></tr>
+          </tbody>
+        </table></div>
+        <p>On the Default and Midnight shifts, employees can clock in at any time. Each attendance day starts at 8 AM on the Default Shift and at midnight on the Midnight Shift.</p>
+        <p>When creating a shift, choose <b>Day 1</b> as the end day if it finishes the same day, or <b>Day 2</b> if it finishes the next day. Timora tells you if the times do not match the day you chose. A shift can last up to 24 hours.</p>
+      </section>
+
+      <section id="menu">
+        <div class="eyebrow">Admin panel</div>
+        <h2>Admin menu</h2>
+        <p>The sidebar is grouped, and each group opens and closes with a click. The group holding the current page always opens. You only see the pages your role allows.</p>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Group</th><th>Pages</th></tr></thead>
+          <tbody>
+            <tr><td>Workforce</td><td>Employees, Shifts, Shift Assignments</td></tr>
+            <tr><td>Time &amp; Attendance</td><td>Attendance Records, Overtime</td></tr>
+            <tr><td>Payroll &amp; Reports</td><td>Salary, Attendance Reports</td></tr>
+            <tr><td>Administration</td><td>User Access Management, System Settings, Backup &amp; Restore, Critical Operations</td></tr>
+          </tbody>
+        </table></div>
+      </section>
+
+      <section id="daily">
+        <div class="eyebrow">Every day</div>
+        <h2>Daily use</h2>
+        <p><b>Employees</b> use the attendance screen, with no login:</p>
+        <ol class="steps">
+          <li><b>Select your name</b><span>Open the <b>Select employee</b> dropdown, then find your name by typing your name or employee ID.</span></li>
+          <li><b>Check your status</b><span>Make sure the name and status shown are yours.</span></li>
+          <li><b>Press the button</b><span>Press the green <b>CLOCK IN</b> or red <b>CLOCK OUT</b> button. A confirmation shows your name and the exact time recorded.</span></li>
+        </ol>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Status</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><span class="pill blue">NOT CLOCKED IN</span></td><td>You can clock in now</td></tr>
+            <tr><td><span class="pill green">CLOCKED IN</span></td><td>You are clocked in and can clock out</td></tr>
+            <tr><td><span class="pill red">CLOCKED OUT</span></td><td>Attendance for this shift is complete</td></tr>
+            <tr><td><span class="pill orange">SHIFT NOT STARTED</span></td><td>Clock-in has not opened yet; the screen shows when it opens</td></tr>
+            <tr><td><span class="pill orange">SHIFT COMPLETED</span></td><td>The shift has ended</td></tr>
+            <tr><td><span class="pill">NOT SCHEDULED</span></td><td>No shift today, or today is a day off, a holiday or leave</td></tr>
+          </tbody>
+        </table></div>
+        <p><b>Administrators</b> use the admin panel to monitor the dashboard, correct records, record leave and run reports. Use <b>Admin login</b> at the bottom of the attendance screen, or go to <code>/admin</code>.</p>
+      </section>
+
+      <section id="manual">
+        <div class="eyebrow">Install</div>
+        <h2>Manual install (Windows, macOS, Linux)</h2>
+        <p>Use these steps if you prefer the command line, or if you are not on Windows. You need Python 3.10 or newer.</p>
+        <div class="grid two">
+          <div><h3 style="margin-top:0">Windows</h3>
+<pre><code>python -m venv .venv
+.venv\Scripts\python.exe -m pip install -r requirements.txt
+.venv\Scripts\python.exe run.py --open</code></pre></div>
+          <div><h3 style="margin-top:0">macOS / Linux</h3>
+<pre><code>python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python run.py --open</code></pre></div>
+        </div>
+        <p>Press <kbd>Ctrl</kbd> + <kbd>C</kbd> to stop the server. To start it again later, run only the last command.</p>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Option for <code>run.py</code></th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><code>--open</code></td><td>Open the browser when the server is ready</td></tr>
+            <tr><td><code>--host 0.0.0.0</code></td><td>Allow other computers on the network to connect</td></tr>
+            <tr><td><code>--port 5050</code></td><td>Use a different port</td></tr>
+          </tbody>
+        </table></div>
+      </section>
+
+      <section id="network">
+        <div class="eyebrow">Install</div>
+        <h2>Use from other computers on the network</h2>
+        <p>By default, only the computer running Timora can reach it. To let other computers connect:</p>
+        <ol class="steps">
+          <li><b>Change the host</b><span>Open <code>config/settings.json</code> in a text editor and set <code>"host"</code> to <code>"0.0.0.0"</code>. To restore the default, set it back to <code>"127.0.0.1"</code>.</span>
+<pre><code>{
+  "host": "0.0.0.0",
+  "port": 5000,
+  "database": "database/timora.db",
+  "backup_dir": "backups",
+  "max_upload_mb": 200
+}</code></pre></li>
+          <li><b>Restart Timora</b><span>Close the window and double-click <code>start-timora.bat</code> again.</span></li>
+          <li><b>Allow it through Windows Firewall</b><span>When asked, allow it on <b>Private networks</b> only.</span></li>
+          <li><b>Find the server's address</b><span>Run <code>ipconfig</code> and note the <b>IPv4 Address</b>.</span></li>
+          <li><b>Open it on the other computers</b><span>Go to <code>http://&lt;that address&gt;:5000/</code>, for example <code>http://192.168.1.20:5000/</code>.</span></li>
+        </ol>
+        <div class="note warn"><p>Traffic is not encrypted on plain HTTP, so use this only on a network you trust.</p></div>
+      </section>
+
+      <section id="rules">
+        <div class="eyebrow">How it works</div>
+        <h2>Attendance rules</h2>
+        <p>All times are stored in UTC and shown in the business timezone. An overnight shift belongs to the date it starts on. The examples use a 09:00 AM to 06:00 PM shift with a 10-minute grace period.</p>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Rule</th><th>How it works</th><th>Example</th></tr></thead>
+          <tbody>
+            <tr><td>On time</td><td>Clock-in up to the end of the grace period</td><td>09:05 AM is on time</td></tr>
+            <tr><td>Late</td><td>Clock-in after the grace period, measured from the shift start</td><td>09:15 AM is 15 minutes late</td></tr>
+            <tr><td>Early arrival</td><td>Clock-in before the shift start, within the early allowance</td><td>08:45 AM is 15 minutes early</td></tr>
+            <tr><td>Early departure</td><td>Clock-out before the shift end</td><td>04:00 PM is 2 hours early</td></tr>
+            <tr><td>Overtime</td><td>Clock-out after the shift end, once past the minimum overtime (default 15 minutes)</td><td>07:30 PM is 1h 30m overtime</td></tr>
+            <tr><td>Half day</td><td>Worked less than the half-day threshold (default 50%) of scheduled hours</td><td></td></tr>
+            <tr><td>Incomplete attendance</td><td>No clock-out before the late clock-out allowance ends (default 4 hours)</td><td>An administrator can add the clock-out</td></tr>
+          </tbody>
+        </table></div>
+        <ul>
+          <li><b>Clock-in window:</b> opens before the shift by the early allowance (default 60 minutes) and closes at the shift end.</li>
+          <li><b>Breaks:</b> the shift's break is deducted from worked time when the employee worked at least half of the scheduled shift.</li>
+          <li><b>Flexible shifts:</b> never flagged late or early, and overtime is based on hours worked.</li>
+          <li><b>24-hour shifts:</b> a shift that ends on Day 2 at its start time is a full 24-hour window. Marked flexible, as the Default and Midnight shifts are, it shows Present once the employee clocks out, with no late, early, half-day or overtime flags. On the Default Shift, a clock-in at 03:00 AM counts towards the attendance day that started at 8 AM the day before.</li>
+          <li><b>One status per record:</b> when several apply, the priority is Half Day, Late, Early Departure, Overtime, then Present. The durations are kept regardless, so reports count them all.</li>
+          <li><b>Absent:</b> worked out from the schedule when a scheduled shift ends with no attendance.</li>
+          <li><b>Past records:</b> each record keeps the shift times it was worked under, so editing a shift later never changes history.</li>
+        </ul>
+        <p>Most of these values can be changed per shift or in <b>System Settings</b>.</p>
+      </section>
+
+      <section id="shifts">
+        <div class="eyebrow">How it works</div>
+        <h2>Shifts and starter data</h2>
+        <h3>Deleting a shift</h3>
+        <p>Super Admins and Admins can delete a shift from the <b>Shifts</b> page. Other roles cannot, even if they can manage shifts.</p>
+        <ul>
+          <li>Move everyone off the shift first under <b>Shift Assignments</b>. A shift with employees assigned today or later cannot be deleted.</li>
+          <li>At least one shift must remain.</li>
+          <li>Past attendance records keep the deleted shift's name, and its code can be used again.</li>
+        </ul>
+        <p>To stop using a shift for now without removing it, choose <b>Deactivate</b> instead.</p>
+        <h3>Starter data</h3>
+        <p>A new installation starts with the three starter shifts and one employee, <b>Heyshan Senaviratne</b> (<code>EM001</code>, Manager, on the Manager Shift). He comes from <code>config/starter_data.json</code>. His joining date is set to the installation date, so update it under <b>Employees</b>, along with his basic salary and OT rate.</p>
+        <p>This data is added only once, to an empty system. To start again from nothing, stop Timora and delete <code>database/timora.db</code>. This erases <b>all</b> data, including settings and admin accounts.</p>
+      </section>
+
+      <section id="overtime">
+        <div class="eyebrow">Pay</div>
+        <h2>Overtime and pay</h2>
+        <p><b>Add overtime:</b> on the <b>Overtime</b> page, choose <b>Add Overtime</b>, enter the date, hours and reason, and choose selected employees or all active employees. To undo an entry, cancel it with a reason. Entries are never deleted.</p>
+        <p><b>Who can do what:</b> the permissions are tied to the role on a person's login, not to their employee type. Marking someone as a Manager employee does not give them a login.</p>
+        <div class="formula"><span>Added OT hours</span>×<span>OT rate per hour</span>=<span class="total">OT pay</span></div>
+        <ul>
+          <li>Each entry keeps the rate in force when it was added, so changing a rate later does not change earlier pay. Set the rate before adding overtime.</li>
+          <li>Added overtime is separate from attendance. It does not change clock times, worked hours or status, and it appears as its own line on the salary slip.</li>
+        </ul>
+        <div class="note"><p><b>Only hours added on the Overtime page count towards pay.</b> Overtime worked out from clock-out times appears in the <b>Overtime Report</b> but is not paid automatically, so nothing is paid twice or without a manager's approval.</p></div>
+      </section>
+
+      <section id="salary">
+        <div class="eyebrow">Pay</div>
+        <h2>Salary slips</h2>
+        <p>Open <b>Salary</b> in the admin panel, available to Super Admins and Admins, and choose a month to see everyone's pay. Choose <b>View</b> on an employee to:</p>
+        <ul>
+          <li>Set their <b>basic salary</b> and <b>OT pay rate</b>.</li>
+          <li>Add <b>allowances</b> and <b>deductions</b>, each for every month from now on or for this month only.</li>
+          <li><b>Print</b> the salary slip.</li>
+          <li><b>Finalize</b> the slip, which locks its amounts so later pay changes do not affect it. A finalized slip can be reopened.</li>
+        </ul>
+        <div class="formula"><span>Basic salary</span>+<span>Allowances</span>+<span>Overtime</span>=<span>Gross pay</span></div>
+        <div class="formula"><span>Gross pay</span>−<span>Deductions</span>=<span class="total">Net salary</span></div>
+        <p>The slip is A5 width and is A5 height when everything fits. With more lines, the page grows taller so that every allowance and deduction is listed. To keep this size, choose <b>Save as PDF</b> or a printer that accepts custom paper sizes, and set scale to 100%. A printer loaded with fixed A5 paper may continue a long slip onto a second sheet.</p>
+        <div class="note warn"><p>Basic salary is not reduced automatically for absence or for joining mid-month. Add a deduction when one is needed.</p></div>
+      </section>
+
+      <section id="reports">
+        <div class="eyebrow">Reports</div>
+        <h2>Reports and Excel export</h2>
+        <p>On <b>Attendance Reports</b>, use <b>Excel</b>, <b>CSV</b>, <b>JSON</b> or <b>Print / PDF</b> to export the report on screen. To get everything at once, choose <b>Export All Reports</b>:</p>
+        <ol class="steps">
+          <li><b>Choose a date range</b><span>Today, yesterday, this or last week, this or last month, or custom dates.</span></li>
+          <li><b>Narrow it down, if you like</b><span>Selected people, an employee type, a department or a shift.</span></li>
+          <li><b>Choose the reports</b><span>All are ticked by default, and pay reports appear only for people allowed to see pay.</span></li>
+          <li><b>Choose Build &amp; Download</b></li>
+        </ol>
+        <p>The Excel workbook has an <b>Overview</b> sheet showing the filters used, then one sheet per report. Clock-in and clock-out each have their own date and time columns, which matters when a shift runs past midnight. Dates and durations are real Excel values, so they can be sorted, filtered and added up. You can also download the reports as a ZIP of CSV files or as JSON.</p>
+      </section>
+
+      <section id="roles">
+        <div class="eyebrow">Access</div>
+        <h2>Roles and permissions</h2>
+        <div class="table-wrap"><table class="matrix">
+          <thead><tr><th>Access</th><th>Super Admin</th><th>Admin</th><th>Manager</th><th>Attendance Manager</th><th>Viewer</th></tr></thead>
+          <tbody>
+            <tr><td>Dashboard</td><td><span class="yes" aria-label="Yes">✓</span></td><td><span class="yes" aria-label="Yes">✓</span></td><td><span class="yes" aria-label="Yes">✓</span></td><td><span class="yes" aria-label="Yes">✓</span></td><td><span class="yes" aria-label="Yes">✓</span></td></tr>
+            <tr><td>Reports and exports (without pay figures)</td><td><span class="yes" aria-label="Yes">✓</span></td><td><span class="yes" aria-label="Yes">✓</span></td><td><span class="yes" aria-label="Yes">✓</span></td><td><span class="yes" aria-label="Yes">✓</span></td><td><span class="yes" aria-label="Yes">✓</span></td></tr>
+            <tr><td>View attendance</td><td><span class="yes" aria-label="Yes">✓</span></td><td><span class="yes" aria-label="Yes">✓</span></td><td><span class="yes" aria-label="Yes">✓</span></td><td><span class="yes" aria-label="Yes">✓</span></td><td><span class="no" aria-label="No">–</span></td></tr>
+            <tr><td>Correct attendance, record leave</td><td><span class="yes" aria-label="Yes">✓</span></td><td><span class="yes" aria-label="Yes">✓</span></td><td><span class="no" aria-label="No">–</span></td><td><span class="yes" aria-label="Yes">✓</span></td><td><span class="no" aria-label="No">–</span></td></tr>
+            <tr><td>Add and cancel overtime</td><td><span class="yes" aria-label="Yes">✓</span></td><td><span class="yes" aria-label="Yes">✓</span></td><td><span class="yes" aria-label="Yes">✓</span></td><td><span class="no" aria-label="No">–</span></td><td><span class="no" aria-label="No">–</span></td></tr>
+            <tr><td>Salary, allowances, slips, OT rates, pay reports</td><td><span class="yes" aria-label="Yes">✓</span></td><td><span class="yes" aria-label="Yes">✓</span></td><td><span class="no" aria-label="No">–</span></td><td><span class="no" aria-label="No">–</span></td><td><span class="no" aria-label="No">–</span></td></tr>
+            <tr><td>Manage employees</td><td><span class="yes" aria-label="Yes">✓</span></td><td><span class="yes" aria-label="Yes">✓</span></td><td><span class="no" aria-label="No">–</span></td><td><span class="no" aria-label="No">–</span></td><td><span class="no" aria-label="No">–</span></td></tr>
+            <tr><td>Manage shifts and assignments</td><td><span class="yes" aria-label="Yes">✓</span></td><td><span class="yes" aria-label="Yes">✓</span></td><td><span class="no" aria-label="No">–</span></td><td><span class="no" aria-label="No">–</span></td><td><span class="no" aria-label="No">–</span></td></tr>
+            <tr><td>Delete shifts</td><td><span class="yes" aria-label="Yes">✓</span></td><td><span class="yes" aria-label="Yes">✓</span></td><td><span class="no" aria-label="No">–</span></td><td><span class="no" aria-label="No">–</span></td><td><span class="no" aria-label="No">–</span></td></tr>
+            <tr><td>Manage administrators and roles</td><td><span class="yes" aria-label="Yes">✓</span></td><td><span class="no" aria-label="No">–</span></td><td><span class="no" aria-label="No">–</span></td><td><span class="no" aria-label="No">–</span></td><td><span class="no" aria-label="No">–</span></td></tr>
+            <tr><td>System settings</td><td><span class="yes" aria-label="Yes">✓</span></td><td><span class="no" aria-label="No">–</span></td><td><span class="no" aria-label="No">–</span></td><td><span class="no" aria-label="No">–</span></td><td><span class="no" aria-label="No">–</span></td></tr>
+            <tr><td>Backup and restore</td><td><span class="yes" aria-label="Yes">✓</span></td><td><span class="no" aria-label="No">–</span></td><td><span class="no" aria-label="No">–</span></td><td><span class="no" aria-label="No">–</span></td><td><span class="no" aria-label="No">–</span></td></tr>
+            <tr><td>Audit log</td><td><span class="yes" aria-label="Yes">✓</span></td><td><span class="no" aria-label="No">–</span></td><td><span class="no" aria-label="No">–</span></td><td><span class="no" aria-label="No">–</span></td><td><span class="no" aria-label="No">–</span></td></tr>
+            <tr><td>Critical Operations (purge and reset)</td><td><span class="yes" aria-label="Yes">✓</span></td><td><span class="no" aria-label="No">–</span></td><td><span class="no" aria-label="No">–</span></td><td><span class="no" aria-label="No">–</span></td><td><span class="no" aria-label="No">–</span></td></tr>
+          </tbody>
+        </table></div>
+        <p>Super Admins can change what each other role can do under <b>User Access Management &gt; Roles &amp; Permissions</b>. Super Admin itself always has full access, and at least one active Super Admin must remain.</p>
+      </section>
+
+      <section id="backup">
+        <div class="eyebrow">Safety</div>
+        <h2>Backup and restore</h2>
+        <p>Go to <b>Backup &amp; Restore</b> in the admin panel, available to Super Admins.</p>
+        <div class="grid">
+          <div class="card"><h3>Create &amp; Download Backup</h3><p>Saves a copy in the <code>backups</code> folder and downloads it.</p></div>
+          <div class="card"><h3>Export Data</h3><p>Employees and attendance as CSV or JSON, and the system configuration as JSON.</p></div>
+          <div class="card"><h3>Restore</h3><p>Replaces all current data from a backup. The file is checked first, and a safety copy of the current data is saved beforehand.</p></div>
+        </div>
+        <div class="note warn" style="margin-top:14px"><p>Your data is in <code>database/timora.db</code>. Git ignores this file and the <code>backups</code> folder, so <b>pushing to GitHub does not back up your data</b>. Keep copies of your backups on another drive.</p></div>
+      </section>
+
+      <section id="critical">
+        <div class="eyebrow">Safety</div>
+        <h2>Critical Operations</h2>
+        <p>This page is only available to Super Admins, and the permission cannot be given to any other role.</p>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Option</th><th>What it does</th></tr></thead>
+          <tbody>
+            <tr><td>Purge Selected</td><td>Deletes the rows you tick in the chosen table</td></tr>
+            <tr><td>Purge All Shown</td><td>Deletes every row in the chosen table that matches the date and employee filters. With no filters, this is the whole table</td></tr>
+            <tr><td>Clean Up All Data</td><td>Deletes all employees, attendance, overtime, salary data, leave, holidays and the audit log. Keeps shifts, settings and administrators</td></tr>
+            <tr><td>Reset Everything</td><td>Returns Timora to a new installation: default shifts and settings, the starter employee, and the login <code>admin</code> / <code>admin@123</code></td></tr>
+          </tbody>
+        </table></div>
+        <div class="note danger"><p><b>Safeguards:</b> each operation shows what will be removed, requires your password and a typed confirmation word, and saves a backup first as <code>timora-pre-purge-*.db</code> or <code>timora-pre-reset-*.db</code>. Backup files are never deleted. To undo an operation, restore that file under <b>Backup &amp; Restore</b>.</p></div>
+        <ul>
+          <li><b>What else is removed:</b> purging an employee also deletes all of their records. Purging a shift also deletes its assignments, and attendance records lose their link to that shift. If no shift remains, the starter shifts are added again.</li>
+          <li><b>Employee IDs:</b> purges and cleanups do not reuse IDs, so numbering continues. Only <b>Reset Everything</b> restarts from <code>EM001</code>, with Heyshan Senaviratne.</li>
+        </ul>
+      </section>
+
+      <section id="troubleshooting">
+        <div class="eyebrow">Help</div>
+        <h2>Troubleshooting</h2>
+        <p><code>start-timora.bat</code> and <code>run.py</code> explain most problems on screen. Common ones:</p>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Problem</th><th>What to do</th></tr></thead>
+          <tbody>
+            <tr><td>Python could not be installed</td><td>Check your internet connection, then install Python from python.org with <b>Add python.exe to PATH</b> ticked, and run the launcher again</td></tr>
+            <tr><td>Components could not be installed</td><td>Check your internet connection. On a company network, ask IT to allow <code>pypi.org</code> and <code>files.pythonhosted.org</code>. Details are in <code>logs/install.log</code></td></tr>
+            <tr><td>Some files are missing</td><td>Extract the whole ZIP first, then run the launcher from the extracted folder</td></tr>
+            <tr><td>Another program is using port 5000</td><td>Close that program, or change <code>port</code> in <code>config/settings.json</code> to another number such as <code>5050</code></td></tr>
+            <tr><td>Timora is already running</td><td>The launcher opens the browser on the running copy. To restart, close the first window, then run the launcher again</td></tr>
+            <tr><td>Not allowed to write to the folder</td><td>Move the Timora folder to your Desktop or Documents</td></tr>
+            <tr><td>The clock shows the wrong time</td><td>Set <b>Business Timezone</b> in <b>System Settings</b></td></tr>
+            <tr><td>An employee shows NOT SCHEDULED</td><td>Check that they have a shift assigned and that today is one of its working days, then check for holidays, leave and whether the shift is active</td></tr>
+            <tr><td>An employee is missing from the dropdown</td><td>Inactive employees are not listed. Reactivate them under <b>Employees</b></td></tr>
+            <tr><td>Too many failed logins</td><td>The account locks for 15 minutes by default. Wait, or reset the password as shown under Default login</td></tr>
+            <tr><td>The connection-lost banner appears</td><td>The server is unreachable, and nothing is recorded until it returns. Check that the Timora window is still open and the network is working</td></tr>
+          </tbody>
+        </table></div>
+        <p>If startup still fails, the details may be in <code>logs/timora-error.log</code>.</p>
+      </section>
+
+      <section id="structure">
+        <div class="eyebrow">Inside</div>
+        <h2>Project structure</h2>
+<pre><code>├── index.html            This page
+├── README.md             The same details, as plain text
+├── start-timora.bat      One-click Windows launcher
+├── run.py                Starts the server
+├── manage.py             Maintenance commands
+├── requirements.txt      Required components
+├── backend/              Flask application
+│   ├── app.py            Application setup, pages, error handling
+│   ├── database.py       SQLite schema, transactions, audit log
+│   ├── auth.py           Login, sessions, roles, administrators
+│   ├── schedule.py       Works out who is scheduled and what they can do now
+│   ├── attendance.py     Clocking, records, corrections, leave
+│   ├── employees.py      Employee records and ID generation
+│   ├── shifts.py         Shifts, assignments, holidays
+│   ├── overtime.py       Added overtime
+│   ├── payroll.py        Monthly salary, allowances, deductions, slips
+│   ├── starter.py        Adds the starter employee to a new installation
+│   ├── dashboard.py      Dashboard data
+│   ├── reports.py        Reports and exports
+│   ├── settings.py       System settings
+│   ├── backup.py         Backup, restore, data exports
+│   └── critical.py       Purge, full cleanup and reset
+├── frontend/             HTML, CSS and JavaScript, with no build step
+├── config/
+│   ├── settings.json     Server address, port and file locations
+│   └── starter_data.json Employee added to a new installation
+├── tests/                Automated tests
+├── database/             Live database (not committed)
+└── backups/              Backup files (not committed)</code></pre>
+        <p>Business settings such as timezone and grace periods are stored in the database, so they are included in backups.</p>
+      </section>
+
+      <section id="developers">
+        <div class="eyebrow">Inside</div>
+        <h2>For developers</h2>
+        <p><b>Stack:</b> Python, Flask, Waitress, SQLite, openpyxl for Excel files, and plain HTML, CSS and JavaScript.</p>
+        <h3>Run the tests</h3>
+<pre><code>.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+.venv\Scripts\python.exe -m pytest</code></pre>
+        <h3>Maintenance commands</h3>
+<pre><code>python manage.py init                       <span class="c"># Create the database</span>
+python manage.py reset-password &lt;username&gt;  <span class="c"># Set a new password</span></code></pre>
+        <p><b>Environment variables</b> override <code>config/settings.json</code>: <code>TIMORA_HOST</code>, <code>TIMORA_PORT</code>, <code>TIMORA_DATABASE</code> and <code>TIMORA_BACKUP_DIR</code>.</p>
+        <h3>API</h3>
+        <p>All communication is JSON. Clocking in:</p>
+<pre><code>POST /api/attendance/clock
+Content-Type: application/json
+
+{ "employee_id": "EM001", "action": "clock_in", "request_id": "unique-id-per-attempt" }</code></pre>
+        <p>Response:</p>
+<pre><code>{
+  "success": true,
+  "employee_id": "EM001",
+  "employee_name": "Heyshan Senaviratne",
+  "action": "clock_in",
+  "timestamp": "2026-10-31T09:00:00Z",
+  "local_time": "09:00:00 AM",
+  "status": "clocked_in",
+  "attendance_status": "Present",
+  "note": "On time",
+  "message": "Clock-in successful"
+}</code></pre>
+        <p>Errors use the same format:</p>
+<pre><code>{ "success": false, "code": "DUPLICATE_CLOCK_IN", "message": "Heyshan Senaviratne is already clocked in." }</code></pre>
+        <p>Resending the same <code>request_id</code> returns the original result instead of recording a second event.</p>
+      </section>
+
+      <section id="security">
+        <div class="eyebrow">Safety</div>
+        <h2>Security notes</h2>
+        <p>Timora is built for a trusted local network.</p>
+        <div class="note"><p><b>Included:</b> hashed passwords, a forced change of the default password, login lockout, session timeout, server-side permission checks, parameterized SQL, protection against cross-site requests, and a permanent audit trail.</p></div>
+        <ul>
+          <li><b>The attendance screen has no login, by design.</b> Anyone who can open it can see employee names and IDs, and can clock in or out as any employee.</li>
+          <li><b>Traffic is not encrypted.</b> Timora uses plain HTTP, so do not expose it to the internet. For access beyond a trusted network, put it behind an HTTPS reverse proxy or a VPN.</li>
+          <li><b>Keep private files private.</b> <code>database/</code>, <code>backups/</code> and <code>database/secret.key</code> hold your data and session key. Git already ignores them; do not share them.</li>
+        </ul>
+      </section>
+    </article>
+  </div>
+
+  <footer>
+    <div class="wrap">
+      <span>Timora v1.0 · Smart Employee Time Tracking</span>
+      <span>Developed by JS_Software</span>
+    </div>
+  </footer>
+</body>
+</html>
