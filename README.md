@@ -6,10 +6,14 @@ Timora is a lightweight attendance and shift management system. Employees clock 
 
 It runs on your own computer or local network. It needs no cloud service, and all data stays in a local SQLite database.
 
+A one-page overview of the project is in [`docs/index.html`](docs/index.html).
+
 ## Contents
 
 - [Features](#features)
+- [Requirements](#requirements)
 - [Quick start on Windows](#quick-start-on-windows)
+- [Updating to a new version](#updating-to-a-new-version)
 - [Default login](#default-login)
 - [First-time setup](#first-time-setup)
 - [Admin menu](#admin-menu)
@@ -27,6 +31,7 @@ It runs on your own computer or local network. It needs no cloud service, and al
 - [Critical Operations](#critical-operations)
 - [Troubleshooting](#troubleshooting)
 - [Project structure](#project-structure)
+- [Project page](#project-page)
 - [For developers](#for-developers)
 - [Security notes](#security-notes)
 
@@ -43,10 +48,19 @@ It runs on your own computer or local network. It needs no cloud service, and al
 - **Salary:** monthly salary with allowances, deductions and overtime, and a printable A5 salary slip
 - **Reports:** eleven report types with filters, sorting and pagination, exportable as Excel, CSV or JSON, or printed to PDF
 - **Export All Reports:** every report for the chosen dates and people, in one Excel workbook
-- **Access control:** Super Admin, Admin, Attendance Manager and Viewer roles, enforced by the server
+- **Company card:** your company profile, shown when anyone clicks the company name on the attendance screen
+- **Access control:** Super Admin, Admin, Manager, Attendance Manager and Viewer roles, enforced by the server
 - **Backup and restore:** database backups, data exports and an automatic safety copy before every restore
+- **Critical Operations:** Super Admin tools to purge selected data, clean up everything, or reset to defaults
 
 Supports up to 999 employees, with IDs from `EM001` to `EM999`. IDs are permanent and never reused.
+
+## Requirements
+
+- **Computer:** Windows 10 or 11 for the one-click launcher. macOS and Linux work with the [manual install](#manual-install-windows-macos-linux).
+- **Python:** 3.10 or newer. On Windows, the launcher installs it if it is missing.
+- **Browser:** a current version of Edge, Chrome or Firefox.
+- **Internet:** needed the first time only, to download Python and the required components. After that, Timora runs offline.
 
 ## Quick start on Windows
 
@@ -88,6 +102,23 @@ If something goes wrong, the window explains the problem and how to fix it.
 |---|---|
 | Attendance screen | http://127.0.0.1:5000/ |
 | Admin panel | http://127.0.0.1:5000/admin |
+
+## Updating to a new version
+
+1. Close the Timora window, if it is open.
+2. In the Timora folder, get the latest code:
+
+   ```bash
+   git pull
+   ```
+
+   If you downloaded a ZIP instead, download the new ZIP and extract it over your existing folder. The ZIP contains no database or backup files, so yours stay as they are. It does contain `config/settings.json`, so if you changed the host or port there, change it again afterwards.
+
+3. Double-click `start-timora.bat`. It installs any new components the update needs.
+
+**Your data is kept.** The database is upgraded automatically the next time Timora starts. Make a backup under **Backup & Restore** before updating, just in case.
+
+Updates do not change data you already have. For example, your existing shifts and settings stay as they are, and the starter employee is only added to a brand-new installation.
 
 ## Default login
 
@@ -383,6 +414,7 @@ If startup still fails, the details may be in `logs/timora-error.log`.
 │   ├── backup.py         Backup, restore, data exports
 │   └── critical.py       Purge, full cleanup and reset
 ├── frontend/             HTML, CSS and JavaScript, with no build step
+├── docs/index.html       One-page project overview
 ├── config/
 │   ├── settings.json     Server address, port and file locations
 │   └── starter_data.json Employee added to a new installation
@@ -393,9 +425,15 @@ If startup still fails, the details may be in `logs/timora-error.log`.
 
 Business settings such as timezone and grace periods are stored in the database, so they are included in backups.
 
+## Project page
+
+[`docs/index.html`](docs/index.html) is a single page that introduces Timora: its features, how the attendance screen works, the roles, and how to get started. It needs no server, so you can open it directly in a browser.
+
+To publish it as a website, open the repository on GitHub, go to **Settings > Pages**, and under **Build and deployment** choose **Deploy from a branch**, branch `main` and folder `/docs`. GitHub shows the page's address once it is live. The page will be public, so this only makes sense for a public repository.
+
 ## For developers
 
-**Stack:** Python, Flask, Waitress, SQLite, and plain HTML, CSS and JavaScript.
+**Stack:** Python, Flask, Waitress, SQLite, openpyxl for Excel files, and plain HTML, CSS and JavaScript.
 
 **Run the tests:**
 
@@ -456,3 +494,7 @@ Timora is built for a trusted local network.
 - **The attendance screen has no login, by design.** Anyone who can open it can see employee names and IDs, and can clock in or out as any employee.
 - **Traffic is not encrypted.** Timora uses plain HTTP, so do not expose it to the internet. For access beyond a trusted network, put it behind an HTTPS reverse proxy or a VPN.
 - **Keep private files private.** `database/`, `backups/` and `database/secret.key` hold your data and session key. Git already ignores them; do not share them.
+
+---
+
+Timora v1.0 · Developed by JS_Software
